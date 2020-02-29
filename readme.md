@@ -1,9 +1,5 @@
 theme: Simple, 1
 autoscale: true
-
-
----
-
 slidenumbers: true
 footer: © Erlang Solutions 2020
 
@@ -13,8 +9,6 @@ footer: © Erlang Solutions 2020
 # [fit] and how to avoid double billing
 
 ![fit](esl-title-background.png)
-
-
 
 ---
 
@@ -42,7 +36,7 @@ footer: © Erlang Solutions 2020
 
 1. To rant about Aer Lingus in front of a live audience...
 2. A superficial analysis of what may have gone wrong.
-3. How to build better functionality with Elixir and Postgres [^*]
+3. How to build better functionality using Elixir and Postgres [^*]
 
 [^*]: Or something resembling Postgres...
 
@@ -86,6 +80,7 @@ Receive a booking confirmation at 8:03 PM - the flight is booked !
 ---
 
 ![]( Aer_Lingus_EI-DUB_A330.jpg)
+![right](images//man-working-using-a-laptop-2696299.jpg)
 
 # Actually, fail !
 
@@ -150,7 +145,7 @@ Receive a booking confirmation at 8:03 PM - the flight is booked !
 
 ---
 
-# Capturing crashes across all BEAM processes
+# Capture crashes across all BEAM processes
 
 
 ```elixir
@@ -179,219 +174,95 @@ end
 
 ----
 
-# Installing the error handler
+# Installing/Running the error handler
+
 
 ```
 :error_logger.add_report_handler(Global.Logger)
+```
 
+```
 Process.flag(:trap_exit,true)
+```
 
+```
 Task.async(fn -> raise "hell" end)
 ```
 
-----
+Rather than `Logger.error` - do something useful.
 
-# Running the error handler
+Or maybe just send it to the console and let a k8s event handler pick it up.
 
-----
+Your choice.
 
-![autoplay fit ](global.error.handler.mp4)
-
-
-
-
-
+![autoplay right fit loop](global.error.handler.mp4)
 
 ---
 
-Overview of time I tried to book a flight with Aer Lingus
-    1. I needed to fly the next day
-    2. Went to the website - it crashed a couple of times as I was attempting to find the flight 
-    3. Kept resetting the travel dates to dates a month in advance each time I searched flights
-    4. Finally found the flight 
-    5. Website told me there were 5 seats left
-    6. Started trying to book
+# Handling a task that fails 
 
----
-
-Booking process
-    1. Selected the flight
-    2. Chose the seats
-    3. Entered my personal details
-    4. Entered my credit card details 
-    5. Pressed the button to book 
-
-----
-
-Then things started to go wrong
-    1. Site wanted me to log into their customer loyalty program
-    2. Attempted to log in using my credentials (once)
-    3. Site crashed again 
-    4. Attempted to log in using my credentials
-    5. Got a message saying maximum number of log-in attempts have been exceeded
-    6. But the booking has gone through, right?
-
----
+Code your own retry handling logic or use one that already exists
 
 
-Obviously something wasn’t healthy 
-    1. Time is now 9PM
-    2. Sit there waiting for email confirmation 
-    3. But it hasn’t arrived
-    4. Wait for 1 hour - still no email
+Options: 
 
----
+* [safwank/ElixirRetry](https://github.com/safwank/ElixirRetry)
 
-New browsing session 
-    1. Clear all cookies 
-    2. Return to website 
-    3. Check the flight… 
-    4. 3 Seats left
-    5. Panic
-
----
-
-Attempt to book the flights again
-    1. Select flight 
-    2. Chose seats 
-    3. Enter personal details again
-    4. Enter credit card details again
-    5. Book flight, second time, hope this time it’s successful
-
-----
-
-Wait for email confirmation
-    1. Immediately receive 2 email confirmations…
-    2. What? 
-    3. Flight has been booked twice
-
----
-
-Find the support section
-    1. Start a chat session 
-    2. 20 minutes waiting - no agent - presumably everyone having problems? 
-    3. Call their Helpdesk… closed
-
----
-
-Problem domain
-The system has booked the same person with the same credit card twice on the flight
-The email system was heavily lagging 
-The system was crashing while customers were attempting to book flights 
-
-Snoop around a bit 
-    1. The HTTP headers reveal “x-powered-by: Undertow/1”
-    2. That’s the HTTP server that ships with JBoss 
-    3. No surprise it’s flaky
-    4. Yes.. I was a Java developer - I know how hard that stuff is to get right
-
----
-
-What is Java bad at ?????
-    1. Garbage collection - maybe a back end server was hit by stop-the-world GC
-    2. Error handling - hard work without lots of boiler plate
-    3. Spinning many plates (TaskExecutor)
-    4. 
-    5. Global error handling
-    6. Queueing 
-
-----
-
-Global error handling
+* [IanLuites/with_retry](https://github.com/IanLuites/with_retry)
 
 
----
-
-```shell
-23:11:47.098 [error] Global error handler: [
-  initial_call: {:erl_eval, :"-expr/5-fun-3-", []},
-  pid: #PID<0.252.0>,
-  registered_name: [],
-  error_info: {:error, %RuntimeError{message: "hell"},
-   [
-     {:erl_eval, :do_apply, 6, [file: 'erl_eval.erl', line: 678]},
-     {Task.Supervised, :invoke_mfa, 2,
-      [file: 'lib/task/supervised.ex', line: 90]},
-     {Task.Supervised, :reply, 5, [file: 'lib/task/supervised.ex', line: 35]},
-     {:proc_lib, :init_p_do_apply, 3, [file: 'proc_lib.erl', line: 249]}
-   ]},
-  ancestors: [#PID<0.108.0>, #PID<0.81.0>],
-  message_queue_len: 0,
-  messages: [], 
-  links: [#PID<0.108.0>],
-  dictionary: ["$callers": [#PID<0.108.0>]],
-  trap_exit: false,
-  status: :running,
-  heap_size: 6772,
-  stack_size: 27,
-  reductions: 2213
-]
-```
-
----
-  
-```
-:error_logger.delete_report_handler(Global.Logger)
-```
-
-----
-
-Queueing 
-
-shinyscorpion/task_bunny
-akira/exq
-
-Job retry
-
-IanLuites/with_retry
-
-Unique constraints 
+^Retry is more recently updated and I'm currently using it on a project, so we'll use it for this example
 
 ---
 
 
 Using Retry library ([safwank/ElixirRetry](https://github.com/safwank/ElixirRetry))
 
+
+[.column]
+
+
+```elixir
+use Retry
+retry with: linear_backoff(500, 1) |> Enum.take(5) do
+  countdown = Process.get(:countdown,0)   
+  IO.puts("counter: #{countdown}, #{DateTime.utc_now}" )
+  if countdown < 3 do
+    Process.put(:countdown, countdown + 1)
+    raise "countdown too low - trying again..."
+  else 
+    :ok
+  end
+  after
+    result -> result
+  else
+    error -> error
+end
 ```
-iex(23)> retry with: linear_backoff(500, 1) |> Enum.take(5) do
-...(23)>   countdown = Process.get(:countdown,0)   
-...(23)>   IO.puts("counter: #{countdown}, #{DateTime.utc_now}" )
-...(23)>   if countdown < 3 do
-...(23)>     Process.put(:countdown, countdown + 1)
-...(23)>     raise "countdown too low - trying again..."
-...(23)>   else 
-...(23)>     :ok
-...(23)>   end
-...(23)>   after
-...(23)>     result -> result
-...(23)>   else
-...(23)>     error -> error
-...(23)> end
+
+[.column]
+
+
+```
 counter: 0, 2020-02-29 09:54:11.935722Z
 counter: 1, 2020-02-29 09:54:12.436910Z
 counter: 2, 2020-02-29 09:54:12.939001Z
 counter: 3, 2020-02-29 09:54:13.441907Z
 ```
 
-
-
+^ Ships with various backoff options - exponential, linear, can also be configured to only handle certain exceptions. 
+^ recognises tuple starting with :error as an error (can't be overriden but you can configure it to recognise other atoms as well
 
 ----
 
-Dynamic supervision 
+# Implementing unique constraints with Ecto 
 
 
-``
 
-iex(102)> {:ok, sup_pid}  = DynamicSupervisor.start_link(DynamicSupervisor, [strategy: :one_for_one], [name:  MyStack])
-{:ok, #PID<0.905.0>}
-iex(103)> DynamicSupervisor.which_children(MyStack)                                                                    
-[]
+
 ```
 
----
 
-```
 mix phx.gen.schema Flight.Booking flight_bookings name surname cc_hash pp_hash flight_number minute hour day month year
 ```
 
@@ -1064,16 +935,110 @@ Bookings.insert_booking_with_retry(input)
 
 
 
-```
+
+---
+Bloom filter [^bloom]
+
+
+[^bloom]: A Bloom filter is a space-efficient probabilistic data structure, conceived by Burton Howard Bloom in 1970, that is used to test whether an element is a member of a set [https://en.wikipedia.org/wiki/Bloom_filter](https://en.wikipedia.org/wiki/Bloom_filter) 
 
 ---
 
-Slide content can be found at
 
-[`https://github.com/esl/bryan_cb_sf_2020_talk`](git@github.com:esl/bryan_cb_sf_2020_talk.git)
+^---
+^
+^Slide content can be found at
+^
+^[`https://github.com/esl/bryan_cb_sf_2020_talk`](git@github.com:esl/bryan_cb_sf_2020_talk.git)
+^
+^
+^![right 600% ](qr-code-for-talk-source.png)
+^
+^
+^
+^
+^---
+^
+^
+^Snoop around a bit 
+^    1. The HTTP headers reveal “x-powered-by: Undertow/1”
+^    2. That’s the HTTP server that ships with JBoss 
+^    3. No surprise it’s flaky
+^    4. Yes.. I was a Java developer - I know how hard that stuff is to get right
+^
+^---
+^
+^What is Java bad at ?????
+^    1. Garbage collection - maybe a back end server was hit by stop-the-world GC
+^    2. Error handling - hard work without lots of boiler plate
+^    3. Spinning many plates (TaskExecutor)
+^    4. 
+^    5. Global error handling
+^    6. Queueing 
+^
+^----
+^
+^Global error handling
+^
+^
+^---
+^
+^```shell
+^23:11:47.098 [error] Global error handler: [
+^  initial_call: {:erl_eval, :"-expr/5-fun-3-", []},
+^  pid: #PID<0.252.0>,
+^  registered_name: [],
+^  error_info: {:error, %RuntimeError{message: "hell"},
+^   [
+^     {:erl_eval, :do_apply, 6, [file: 'erl_eval.erl', line: 678]},
+^     {Task.Supervised, :invoke_mfa, 2,
+^      [file: 'lib/task/supervised.ex', line: 90]},
+^     {Task.Supervised, :reply, 5, [file: 'lib/task/supervised.ex', line: 35]},
+^     {:proc_lib, :init_p_do_apply, 3, [file: 'proc_lib.erl', line: 249]}
+^   ]},
+^  ancestors: [#PID<0.108.0>, #PID<0.81.0>],
+^  message_queue_len: 0,
+^  messages: [], 
+^  links: [#PID<0.108.0>],
+^  dictionary: ["$callers": [#PID<0.108.0>]],
+^  trap_exit: false,
+^  status: :running,
+^  heap_size: 6772,
+^  stack_size: 27,
+^  reductions: 2213
+^]
+```
+
+---
+  
+```
+:error_logger.delete_report_handler(Global.Logger)
+```
+
+----
+Queueing 
+
+shinyscorpion/task_bunny
+akira/exq
+
+Job retry
 
 
-![right 600% ](qr-code-for-talk-source.png)
+
+Unique constraints 
+
+----
+
+Dynamic supervision 
 
 
+``
+
+iex(102)> {:ok, sup_pid}  = DynamicSupervisor.start_link(DynamicSupervisor, [strategy: :one_for_one], [name:  MyStack])
+{:ok, #PID<0.905.0>}
+iex(103)> DynamicSupervisor.which_children(MyStack)                                                                    
+[]
+```
+
+---
 
