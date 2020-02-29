@@ -1,0 +1,22 @@
+@startuml  overview
+
+title How the booking system was probably implemented
+actor User 
+
+User -> Website: Make booking 
+group "transaction"
+Website -> Backend: Process booking
+database Database
+entity "Payment\nProvider" as Provider 
+Backend -> Provider: Bill the card (success)
+note left: website dies at this point
+end
+Backend -> Database: Write booking \n(no check for duplicates) 
+par 
+Backend -> Website: Attempt to reply
+Backend -> EmailServer: Confirm booking
+EmailServer -> User: Send confirmation email 
+Website -> User: Internal server error
+end
+
+@enduml
