@@ -6,6 +6,7 @@ run_postgres:
 		-e POSTGRES_DB=postgres \
 		-e POSTGRES_PASSWORD=postgres \
 		--name airline_postgres \
+		--volume airline_postgres:/var/lib/postgresql/data \
 		--hostname airline_postgres \
 		-p 5432:5432 postgres
 

@@ -255,30 +255,13 @@ counter: 3, 2020-02-29 09:54:13.441907Z
 
 ----
 
-# Implementing unique constraints with Ecto 
+# Implementing unique constraints 
 
+---
 
+### Schema
 
-
-```
-
-
-mix phx.gen.schema Flight.Booking flight_bookings name surname cc_hash pp_hash flight_number minute hour day month year
-```
-
-```
-~/repos/bhesl/chat/ mix phx.gen.schema Flight.Booking flight_bookings name surname cc_hash pp_hash flight_number minute hour day month year
-* creating lib/chat/flight/booking.ex
-* creating priv/repo/migrations/20200228220226_create_flight_bookings.exs
-
-Remember to update your repository by running migrations:
-
-    $ mix ecto.migrate
-```
-
-
-```
-
+```elixir
 defmodule Chat.Repo.Migrations.CreateFlightBookings do
   use Ecto.Migration
 
@@ -287,7 +270,6 @@ defmodule Chat.Repo.Migrations.CreateFlightBookings do
       add :name, :string
       add :surname, :string
       add :cc_hash, :string
-      add :pp_hash, :string
       add :flight_number, :string
       add :minute, :string
       add :hour, :string
@@ -300,26 +282,20 @@ defmodule Chat.Repo.Migrations.CreateFlightBookings do
 
     create unique_index(
              :flight_bookings,
-             [
-               :name,
-               :surname,
-               :cc_hash,
-               :pp_hash,
-               :flight_number,
-               :minute,
-               :hour,
-               :day,
-               :month,
-               :year
-             ],
+             [ :name, :surname, :cc_hash, :flight_number, :minute, :hour, :day, :month, :year ],
              name: :unique_traveller_index
            )
   end
 end
-
 ```
 
-```
+^ we hash the cc to prevent fraud 
+
+---
+
+### Module
+
+```elixir
 defmodule Chat.Flight.Booking do
   use Ecto.Schema
   import Ecto.Changeset
@@ -332,7 +308,6 @@ defmodule Chat.Flight.Booking do
     field :minute, :string
     field :month, :string
     field :name, :string
-    field :pp_hash, :string
     field :surname, :string
     field :year, :string
 
@@ -342,49 +317,23 @@ defmodule Chat.Flight.Booking do
   @doc false
   def changeset(booking, attrs) do
     booking
-    |> cast(attrs, [
-      :name,
-      :surname,
-      :cc_hash,
-      :pp_hash,
-      :flight_number,
-      :minute,
-      :hour,
-      :day,
-      :month,
-      :year
-    ])
-    |> validate_required([
-      :name,
-      :surname,
-      :cc_hash,
-      :pp_hash,
-      :flight_number,
-      :minute,
-      :hour,
-      :day,
-      :month,
-      :year
-    ])
+    |> cast(attrs, [ :name, :surname, :cc_hash,  :flight_number, :minute, :hour, :day, :month, :year ])
+    |> validate_required([ :name, :surname, :cc_hash,  :flight_number, :minute, :hour, :day, :month, :year ])
     |>  unique_constraint(:unique_booking_constraint, name: :unique_traveller_index)
   end
+
 end
 ```
 
+^ cast - Applies the given params as changes for the given data according to the given set of permitted keys. Returns a changeset.
+^ validate required - ensures required values are set
+^ unique constraint - The unique constraint works by relying on the database to check 
+^ if the unique constraint has been violated or not and, if so, Ecto converts it into a changeset error.
+^ naive implementation - indexes are not free - they slow up writes
 
-```
+---
 
-~/repos/bhesl/chat/ mix ecto.migrate
-
-21:43:51.818 [info]  == Running 20200228214021 Chat.Repo.Migrations.CreateFlightBookings.change/0 forward
-
-21:43:51.820 [info]  create table flight_bookings
-
-21:43:51.834 [info]  create index unique_traveller_index
-
-21:43:51.840 [info]  == Migrated 20200228214021 in 0.0s
-```
-
+Using the Ecto changeset for validation without using the database
 
 ```
 iex(8)> Chat.Flight.Booking.changeset(%Chat.Flight.Booking{}, %{})                                                            
@@ -408,6 +357,10 @@ iex(8)> Chat.Flight.Booking.changeset(%Chat.Flight.Booking{}, %{})
 >
 ```
 
+---
+
+Generate a validated changeset
+
 
 ```
 cc_num_hash = :crypto.hash(:sha256,"5105105105105100") |> Base.encode64
@@ -417,8 +370,7 @@ pp_num_hash = :crypto.hash(:sha256,"970478931") |> Base.encode64
 input = %{
   name: "davey",
   surname: "jones",
-  cc_hash: "cc_hash",
-  pp_hash: "pp_hash",
+  cc_hash: cc_num_hash,
   flight_number: "flight_number",
   minute: "minute",
   hour: "hour",
@@ -427,18 +379,18 @@ input = %{
   year: "year"
 }
 
-```
-
-```
-Chat.Flight.Booking.changeset(%Chat.Flight.Booking{}, input)
-
 valid_changeset = %Ecto.Changeset{valid?: true} = Chat.Flight.Booking.changeset(%Chat.Flight.Booking{}, input)
+
 ```
+
+---
+
+Insert fresh data 
 
 ```
 iex(7)> Chat.Repo.insert(valid_changeset)                                                                             
 [debug] QUERY OK db=3.4ms decode=1.4ms queue=2.2ms idle=9906.6ms
-INSERT INTO "flight_bookings" ("cc_hash","day","flight_number","hour","minute","month","name","pp_hash","surname","year","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING "id" ["cc_hash", "day", "flight_number", "hour", "minute", "month", "name", "pp_hash", "surname", "year", ~N[2020-02-28 22:20:54], ~N[2020-02-28 22:20:54]]
+INSERT INTO "flight_bookings" ("cc_hash","day", SNIP...
 {:ok,
  %Chat.Flight.Booking{
    __meta__: #Ecto.Schema.Metadata<:loaded, "flight_bookings">,
@@ -451,18 +403,21 @@ INSERT INTO "flight_bookings" ("cc_hash","day","flight_number","hour","minute","
    minute: "minute",
    month: "month",
    name: "name",
-   pp_hash: "pp_hash",
    surname: "surname",
    updated_at: ~N[2020-02-28 22:20:54],
    year: "year"
  }}
 ```
 
+---
+
+Insert stale data
+
 ```
 iex(8)> Chat.Repo.insert(valid_changeset)
 
 [debug] QUERY ERROR db=7.4ms queue=1.9ms idle=9324.1ms
-INSERT INTO "flight_bookings" ("cc_hash","day","flight_number","hour","minute","month","name","pp_hash","surname","year","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING "id" ["cc_hash", "day", "flight_number", "hour", "minute", "month", "name", "pp_hash", "surname", "year", ~N[2020-02-28 22:21:04], ~N[2020-02-28 22:21:04]]
+INSERT INTO "flight_bookings" ("cc_hash","day", SNIP...
 {:error,
  #Ecto.Changeset<
    action: :insert,
@@ -474,150 +429,11 @@ INSERT INTO "flight_bookings" ("cc_hash","day","flight_number","hour","minute","
      minute: "minute",
      month: "month",
      name: "name",
-     pp_hash: "pp_hash",
      surname: "surname",
      year: "year"
    },
    errors: [
-     unique_booking_constraint: {"has already been taken",
-      [constraint: :unique, constraint_name: "unique_traveller_index"]}
-   ],
-   data: #Chat.Flight.Booking<>,
-   valid?: false
- >}
-
-
-Chat.Flight.Booking.changeset( %Chat.Flight.Booking{} , valid_changeset.changes |> Map.replace!(:day,"day-1") ) |> Chat.Repo.insert
-[debug] QUERY OK db=8.0ms queue=11.7ms idle=9830.8ms
-INSERT INTO "flight_bookings" ("cc_hash","day","flight_number","hour","minute","month","name","pp_hash","surname","year","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING "id" ["cc_hash", "day-1", "flight_number", "hour", "minute", "month", "name", "pp_hash", "surname", "year", ~N[2020-02-29 09:08:03], ~N[2020-02-29 09:08:03]]
-{:ok,
- %Chat.Flight.Booking{
-   __meta__: #Ecto.Schema.Metadata<:loaded, "flight_bookings">,
-   cc_hash: "cc_hash",
-   day: "day-1",
-   flight_number: "flight_number",
-   hour: "hour",
-   id: 3,
-   inserted_at: ~N[2020-02-29 09:08:03],
-   minute: "minute",
-   month: "month",
-   name: "name",
-   pp_hash: "pp_hash",
-   surname: "surname",
-   updated_at: ~N[2020-02-29 09:08:03],
-   year: "year"
- }}
-```
-
-
-```
-
-iex(4)> cc_num_hash = :crypto.hash(:sha256,"5105105105105100") |> Base.encode64
-"MElF6R3j3v9Sph0IczFB1y3ULsnUeXLxBgU01UwMf5A="
-iex(5)> pp_num_hash = :crypto.hash(:sha256,"970478931") |> Base.encode64
-"KsU2vfI2wLbam/sdsDnuCUMW+O8if7bkvPInJ46U2V8="
-iex(6)>  
-nil
-iex(7)> 
-nil
-iex(8)> input = %{
-...(8)>   name: "davey",
-...(8)>   surname: "jones",
-...(8)>   cc_hash: cc_num_hash,
-...(8)>   pp_hash: pp_num_hash,
-...(8)>   flight_number: "flight_number",
-...(8)>   minute: "minute",
-...(8)>   hour: "hour",
-...(8)>   day: "day",
-...(8)>   month: "month",
-...(8)>   year: "year"
-...(8)> }
-%{
-  cc_hash: "MElF6R3j3v9Sph0IczFB1y3ULsnUeXLxBgU01UwMf5A=",
-  day: "day",
-  flight_number: "flight_number",
-  hour: "hour",
-  minute: "minute",
-  month: "month",
-  name: "davey",
-  pp_hash: "KsU2vfI2wLbam/sdsDnuCUMW+O8if7bkvPInJ46U2V8=",
-  surname: "jones",
-  year: "year"
-}
-
-```
-
-```
-
-iex(12)> valid_changeset = %Ecto.Changeset{valid?: true} = Chat.Flight.Booking.changeset(%Chat.Flight.Booking{}, input)
-#Ecto.Changeset<
-  action: nil,
-  changes: %{
-    cc_hash: "MElF6R3j3v9Sph0IczFB1y3ULsnUeXLxBgU01UwMf5A=",
-    day: "day",
-    entity_hash: "PyfweS0UmHn/7vKJZhHuuFN9oqXNoh9hWyZ5axOjnLA=",
-    flight_number: "flight_number",
-    hour: "hour",
-    minute: "minute",
-    month: "month",
-    name: "davey",
-    pp_hash: "KsU2vfI2wLbam/sdsDnuCUMW+O8if7bkvPInJ46U2V8=",
-    surname: "jones",
-    year: "year"
-  },
-  errors: [],
-  data: #Chat.Flight.Booking<>,
-  valid?: true
->
-
-```
-
-
-```
-
-  iex(13)> Chat.Repo.insert(valid_changeset)
-[debug] QUERY OK db=4.3ms decode=1.1ms queue=3.3ms idle=9871.8ms
-INSERT INTO "flight_bookings" ("cc_hash","day","entity_hash","flight_number","hour","minute","month","name","pp_hash","surname","year","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING "id" ["MElF6R3j3v9Sph0IczFB1y3ULsnUeXLxBgU01UwMf5A=", "day", "PyfweS0UmHn/7vKJZhHuuFN9oqXNoh9hWyZ5axOjnLA=", "flight_number", "hour", "minute", "month", "davey", "KsU2vfI2wLbam/sdsDnuCUMW+O8if7bkvPInJ46U2V8=", "jones", "year", ~N[2020-02-29 09:31:54], ~N[2020-02-29 09:31:54]]
-{:ok,
- %Chat.Flight.Booking{
-   __meta__: #Ecto.Schema.Metadata<:loaded, "flight_bookings">,
-   cc_hash: "MElF6R3j3v9Sph0IczFB1y3ULsnUeXLxBgU01UwMf5A=",
-   day: "day",
-   entity_hash: "PyfweS0UmHn/7vKJZhHuuFN9oqXNoh9hWyZ5axOjnLA=",
-   flight_number: "flight_number",
-   hour: "hour",
-   id: 1,
-   inserted_at: ~N[2020-02-29 09:31:54],
-   minute: "minute",
-   month: "month",
-   name: "davey",
-   pp_hash: "KsU2vfI2wLbam/sdsDnuCUMW+O8if7bkvPInJ46U2V8=",
-   surname: "jones",
-   updated_at: ~N[2020-02-29 09:31:54],
-   year: "year"
- }}
-iex(14)> Chat.Repo.insert(valid_changeset)
-[debug] QUERY ERROR db=6.3ms queue=2.4ms idle=9600.5ms
-INSERT INTO "flight_bookings" ("cc_hash","day","entity_hash","flight_number","hour","minute","month","name","pp_hash","surname","year","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING "id" ["MElF6R3j3v9Sph0IczFB1y3ULsnUeXLxBgU01UwMf5A=", "day", "PyfweS0UmHn/7vKJZhHuuFN9oqXNoh9hWyZ5axOjnLA=", "flight_number", "hour", "minute", "month", "davey", "KsU2vfI2wLbam/sdsDnuCUMW+O8if7bkvPInJ46U2V8=", "jones", "year", ~N[2020-02-29 09:31:55], ~N[2020-02-29 09:31:55]]
-{:error,
- #Ecto.Changeset<
-   action: :insert,
-   changes: %{
-     cc_hash: "MElF6R3j3v9Sph0IczFB1y3ULsnUeXLxBgU01UwMf5A=",
-     day: "day",
-     entity_hash: "PyfweS0UmHn/7vKJZhHuuFN9oqXNoh9hWyZ5axOjnLA=",
-     flight_number: "flight_number",
-     hour: "hour",
-     minute: "minute",
-     month: "month",
-     name: "davey",
-     pp_hash: "KsU2vfI2wLbam/sdsDnuCUMW+O8if7bkvPInJ46U2V8=",
-     surname: "jones",
-     year: "year"
-   },
-   errors: [
-     unique_booking_constraint: {"has already been taken",
-      [constraint: :unique, constraint_name: "unique_traveller_index"]}
+     unique_booking_constraint: {"has already been taken", [constraint: :unique, constraint_name: "unique_traveller_index"]}
    ],
    data: #Chat.Flight.Booking<>,
    valid?: false
@@ -625,6 +441,113 @@ INSERT INTO "flight_bookings" ("cc_hash","day","entity_hash","flight_number","ho
 
 ```
 
+^ That was cool - we seem to be relatively safe - but that's 9 database indexes - things are going to get slow
+
+---
+
+Lets try something a little more efficient 
+
+
+
+^ we don't necessarily want random access to all of those columns but we do want to prevent duplicates.
+^ we could generate a checksum in the changeset function and make it unique instead.
+
+
+---
+
+We add a column to the Booking module `:entity_hash`.
+
+
+```elixir
+defmodule Chat.Flight.Booking do
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  @required_attrs [ :name, :surname, :cc_hash, :entity_hash, :flight_number, :minute, :hour, :day, :month, :year ]
+
+  @hash_attrs @required_attrs
+
+  schema "flight_bookings" do
+    field :cc_hash, :string
+    field :entity_hash, :string
+    field :day, :string
+    field :flight_number, :string
+    field :hour, :string
+    field :minute, :string
+    field :month, :string
+    field :name, :string
+    field :surname, :string
+    field :year, :string
+
+    timestamps()
+  end
+
+SNIP
+
+```
+
+---
+
+And we modify the changeset function to pre-calculate the hash before we store to the database
+
+```elixir
+  @doc false
+  def changeset(booking, %{} = attrs) do
+    entity_hash =
+      :crypto.hash(:sha256, inspect(Map.to_list(attrs |> Map.take(@hash_attrs))))
+      |> Base.encode64()
+
+    augmented_attrs = Map.put(attrs, :entity_hash, entity_hash)
+
+    booking
+    |> cast(
+      augmented_attrs,
+      @required_attrs
+    )
+    |> validate_required(@required_attrs)
+    |> unique_constraint(:unique_booking_constraint, name: :unique_traveller_index)
+  end
+end
+
+```
+
+
+---
+
+The schema/migration now becomes the much more reasonable 
+
+```
+defmodule Chat.Repo.Migrations.CreateFlightBookings do
+  use Ecto.Migration
+
+  def change do
+    create table(:flight_bookings) do
+      add :name, :string
+      add :surname, :string
+      add :cc_hash, :string
+      add :entity_hash, :string
+      add :flight_number, :string
+      add :minute, :string
+      add :hour, :string
+      add :day, :string
+      add :month, :string
+      add :year, :string
+      timestamps()
+    end
+
+    create unique_index( :flight_bookings, [ :entity_hash ], name: :unique_traveller_index)
+  end
+end
+```
+
+^ Audience challenge - compare the relative insert performance for a table with 10 indexed columns VS 1
+
+
+---
+
+Lets try it out... 
+
+![autoplay fit](single-index.mp4)
 
 ----
 
@@ -654,8 +577,9 @@ counter: 2, 2020-02-29 09:54:12.939001Z
 counter: 3, 2020-02-29 09:54:13.441907Z
 ```
 
+---
 
-
+Quick shout out to the macro gods 
 
 ```
 cat retry4j/src/**/*.java | wc -l 
@@ -667,13 +591,48 @@ cat deps/retry/lib/**/*.ex | wc -l
      464
 ```
 
+And I'm so grateful not to be coding Java...
+
 ---
+
+We can use Retry to retry database inserts - in the situation where the database is down.
+
+
+```
+
+defmodule Bookings do
+
+  import Ecto.Query, warn: false
+  alias Chat.Repo
+  alias Chat.Flight.Booking
+
+  def insert_booking_with_retry( %{ name: _, surname: _, cc_hash: _, flight_number: _, minute: _, hour: _, day: _, month: _, year: _ } = booking) do
+    use Retry
+
+    retry with: exponential_backoff()  |> Enum.take(10) , rescue_only: [DBConnection.ConnectionError]   do
+      IO.puts("attempting to insert changeset - #{DateTime.utc_now}")
+      changeset = Chat.Flight.Booking.changeset(%Chat.Flight.Booking{}, booking)
+      case Repo.insert(changeset) do
+        {:error, changeset = %{valid?: false}  } -> {:invalid_changeset, changeset }
+        other -> other
+      end
+    after
+      result -> result
+    else
+      error -> error
+    end
+  end
+end
+```
+
+---
+
 
 demo
 
 
 
-![autoplay loop](demo.mp4)
+![autoplay loop](up-n-down.mp4)
 
 
 
@@ -933,16 +892,91 @@ input = %{ name: "davey", surname: "jones", cc_hash: "cc_num_hash", pp_hash: "pp
 Bookings.insert_booking_with_retry(input) 
 
 
-
-
-
 ---
-Bloom filter [^bloom]
+
+# Bloom filter [^bloom]
 
 
 [^bloom]: A Bloom filter is a space-efficient probabilistic data structure, conceived by Burton Howard Bloom in 1970, that is used to test whether an element is a member of a set [https://en.wikipedia.org/wiki/Bloom_filter](https://en.wikipedia.org/wiki/Bloom_filter) 
 
 ---
+
+
+```elixir
+defmodule Bloomer do
+ use GenServer
+
+  def start_link(_) do
+    GenServer.start_link(__MODULE__, nil, name: __MODULE__)
+  end
+
+  def add(element) do
+    GenServer.cast( __MODULE__, {:add, element})
+  end
+
+  def exists(element) do
+    GenServer.call( __MODULE__, {:exists, element})
+  end
+
+  @impl true
+  def init(_) do
+    {:ok, Bloomex.scalable(1000, 0.1, 0.1, 2) }
+  end
+
+  @impl true
+  def handle_call({:exists,element} , _from, state) do
+    exists = Bloomex.member?(state, element)
+    {:reply, exists, state}
+  end
+
+  @impl true
+  def handle_cast({:add, element}, state) do
+    {:noreply, Bloomex.add(state, element) }
+  end
+end
+```
+
+---
+
+Add the GenServer to the supervison tree of your application module
+
+
+```elixir
+defmodule Chat.Application do
+  # See https://hexdocs.pm/elixir/Application.html
+  # for more information on OTP Applications
+  @moduledoc false
+
+  use Application
+
+  def start(_type, _args) do
+    # List all child processes to be supervised
+    children = [
+      Bloomer,
+      Chat.Repo
+```
+
+---
+
+![autoplay bottom fit loop](bloomer.mp4)
+
+---
+
+Which brings us onto the topic of supervision. 
+
+Don't forget nobody else has anything close to this.
+
+^ Akka has a notion of supervised actors - it's nothing close - and you 
+certainly can't verify your setup in an interactive console.
+
+---
+
+But what was the point of that segway ? 
+
+
+The point is that 
+
+
 
 
 ^---
