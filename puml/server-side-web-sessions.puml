@@ -1,0 +1,34 @@
+@startuml overview
+
+title How "enterprise" browser sessions work 
+actor Browser 
+
+== Session creation ==
+activate Webserver
+User -> Webserver: request page
+return page/cookie
+entity SS as "SessionStore"
+Webserver -> SS : new session 
+activate SS
+SS -> SS :  generate strong random session_id
+SS -> SS : allocate dictionary to session_id
+SS -> SS : start inactivity timer
+Webserver -> SS : associate some data with session_id
+Browser -> Webserver: request page
+return page/session_id
+Browser -> Webserver: another request
+Webserver -> SS: store data
+SS -> SS: update timeout
+== Session timeout ==
+Browser -> Browser: inactive
+SS -> SS: session timeout
+destroy SS
+== Session recreation ==
+Browser -> Webserver: request page
+Webserver -> SS : new session 
+activate SS
+Webserver -> Browser: page with contents reset
+
+
+
+@enduml

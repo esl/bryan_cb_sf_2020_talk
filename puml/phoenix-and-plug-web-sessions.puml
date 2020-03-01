@@ -1,0 +1,20 @@
+@startuml overview
+
+title How phoenix/plug browser sessions work 
+actor Browser 
+
+== Session creation ==
+activate Website
+Browser -> Website: request page
+Website -> Website: encrypted/signed \nsession data into cookie
+Website --> Browser: return page and cookie
+Browser -> Browser: manage cookie expiration
+
+== User inactive ==
+Browser -> Browser: inactive
+
+== User active ==
+Browser -> Website: request page
+return page and updated session 
+
+@enduml

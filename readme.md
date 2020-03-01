@@ -3,16 +3,13 @@ autoscale: true
 slidenumbers: true
 footer: © Erlang Solutions 2020
 
----
-
 # [fit] Customer retention 
 # [fit] and how to avoid double billing
+Bryan Hunt (ESL)
 
-![fit](esl-title-background.png)
+![fit](images/esl-title-background.png)
 
 ---
-
-## Bryan Hunt
 
 * Slinging code for 20 years [^list] 
 * Writing Elixir for about 5 years now 
@@ -24,11 +21,13 @@ footer: © Erlang Solutions 2020
 
 [^list]: Perl, VB, C, C++, PHP, Python, Java, Scala, Javascript, Actionscript, Erlang, Shell, Ansible, Zsh, AWK, Sed, etc, etc .... yawn
 
+![fit](images/esl-background.png)
+
 ^ elixir is boring
 
 ---
 
-![]( Aer_Lingus_EI-DUB_A330.jpg)
+![](images/Aer_Lingus_EI-DUB_A330.jpg)
 
 
 # Talk overview
@@ -42,7 +41,7 @@ footer: © Erlang Solutions 2020
 
 ---
 
-![]( Aer_Lingus_EI-DUB_A330.jpg)
+![](images/Aer_Lingus_EI-DUB_A330.jpg)
 
 # Opening scene [^never forget]
 
@@ -59,7 +58,7 @@ footer: © Erlang Solutions 2020
 
 # Desperation
 
-![]( Aer_Lingus_EI-DUB_A330.jpg)
+![](images/Aer_Lingus_EI-DUB_A330.jpg)
 
 1. Fresh browser
 2. Start the booking process
@@ -73,13 +72,14 @@ footer: © Erlang Solutions 2020
 
 # Success ! 
 
-![]( Aer_Lingus_EI-DUB_A330.jpg)
+
+![](images/Aer_Lingus_EI-DUB_A330.jpg)
 
 Receive a booking confirmation at 8:03 PM - the flight is booked !
 
 ---
 
-![]( Aer_Lingus_EI-DUB_A330.jpg)
+![](images/Aer_Lingus_EI-DUB_A330.jpg)
 ![right](images//man-working-using-a-laptop-2696299.jpg)
 
 # Actually, fail !
@@ -112,12 +112,12 @@ Receive a booking confirmation at 8:03 PM - the flight is booked !
 ----
 
 
-![fit original](out/how-booking-should-work/overview.png)
+![fit original](out/puml/how-booking-should-work/overview.png)
 
 ----
 
 
-![fit original](out/how-booking-was-probably-implemented/overview.png)
+![fit original](out/puml/how-booking-was-probably-implemented/overview.png)
 
 
 ---
@@ -195,7 +195,7 @@ Or maybe just send it to the console and let a k8s event handler pick it up.
 
 Your choice.
 
-![autoplay right fit loop](global.error.handler.mp4)
+![autoplay right fit loop](video/global.error.handler.mp4)
 
 ---
 
@@ -445,13 +445,12 @@ INSERT INTO "flight_bookings" ("cc_hash","day", SNIP...
 
 ---
 
-Lets try something a little more efficient 
+# Lets try something a little more efficient 
 
 
 
 ^ we don't necessarily want random access to all of those columns but we do want to prevent duplicates.
 ^ we could generate a checksum in the changeset function and make it unique instead.
-
 
 ---
 
@@ -485,7 +484,6 @@ defmodule Chat.Flight.Booking do
 SNIP
 
 ```
-
 ---
 
 And we modify the changeset function to pre-calculate the hash before we store to the database
@@ -510,8 +508,6 @@ And we modify the changeset function to pre-calculate the hash before we store t
 end
 
 ```
-
-
 ---
 
 The schema/migration now becomes the much more reasonable 
@@ -542,17 +538,20 @@ end
 
 ^ Audience challenge - compare the relative insert performance for a table with 10 indexed columns VS 1
 
-
 ---
 
 Lets try it out... 
 
-![autoplay fit](single-index.mp4)
+![autoplay fit](video/single-index.mp4)
 
 ----
 
-What about the database being down? 
+# What about the database being down? 
 
+
+^ how can we handle intermittend database failures on the critical path?
+
+---
 
 Using Retry library ([safwank/ElixirRetry](https://github.com/safwank/ElixirRetry))
 
@@ -579,7 +578,8 @@ counter: 3, 2020-02-29 09:54:13.441907Z
 
 ---
 
-Quick shout out to the macro gods 
+Quick shout out to the Elixir macro overlords [^java (™)]
+
 
 ```
 cat retry4j/src/**/*.java | wc -l 
@@ -591,7 +591,9 @@ cat deps/retry/lib/**/*.ex | wc -l
      464
 ```
 
-And I'm so grateful not to be coding Java...
+[^java (™)]: And I'm so grateful not to be coding Java...
+
+^The thing is, implementing something like this in Elixir is very easy
 
 ---
 
@@ -627,34 +629,61 @@ end
 
 ---
 
-
 demo
 
-
-
-![autoplay loop](up-n-down.mp4)
-
-
+![autoplay loop](video/up-n-down.mp4)
 
 ----
 
+# What about server session timeouts? 
+
 The session keeps timing out ....
 
+* [Memory constraints](https://stackoverflow.com/questions/11956038/what-happens-to-a-java-web-containers-memory-when-there-are-too-many-concurrent) 
+* Restart the server - lose all sessions
+* Store the session data in a datastore
 
-```
 
-plug Plug.Session,
-  store: :cookie,
-  key: "_zb_key",
-  signing_salt: "RANDOM HEX",
-  max_age: 24*60*60*37       # 37 days
-```
-
-The Plug.Sessions module has a built-in option to set the expiration of a cookie using the max_age key. For example, extending your endpoint.ex snippet would look like:
+^So this is where you search for a flight - get distracted for 10 minutes by something else
+^Come back and the dates have reset to 2 weeks in the future
+^M
 
 ---
 
+# Session storage in Plug/Phoenix
 
+---
+
+![fit](out//puml/phoenix-and-plug-web-sessions/overview.png)
+
+---
+
+![fit](out//puml/server-side-web-sessions/overview.png )
+
+---
+
+# How do we configure session storage in Phoenix/Plug
+
+`endpoint.ex`
+
+```elixir
+plug Plug.Session,
+  store: :cookie,
+  key: "_chat_key",
+  signing_salt: "cKjB7sPT"
+  max_age: 24*60*60*30  # 30 days
+```
+
+> Trivial
+
+^The Plug.Sessions module has a built-in option to set the expiration of a cookie using the max_age key. For example, extending your endpoint.ex snippet would look like:
+^The session content can also be encrypted 
+
+---
+
+Trivial
+
+---
 
 ```
 
@@ -891,7 +920,6 @@ input = %{ name: "davey", surname: "jones", cc_hash: "cc_num_hash", pp_hash: "pp
 
 Bookings.insert_booking_with_retry(input) 
 
-
 ---
 
 # Bloom filter [^bloom]
@@ -900,7 +928,6 @@ Bookings.insert_booking_with_retry(input)
 [^bloom]: A Bloom filter is a space-efficient probabilistic data structure, conceived by Burton Howard Bloom in 1970, that is used to test whether an element is a member of a set [https://en.wikipedia.org/wiki/Bloom_filter](https://en.wikipedia.org/wiki/Bloom_filter) 
 
 ---
-
 
 ```elixir
 defmodule Bloomer do
@@ -958,7 +985,7 @@ defmodule Chat.Application do
 
 ---
 
-![autoplay bottom fit loop](bloomer.mp4)
+![autoplay bottom fit loop](video/bloomer.mp4)
 
 ---
 
