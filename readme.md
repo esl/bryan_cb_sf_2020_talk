@@ -544,7 +544,120 @@ Lets try it out...
 
 ![autoplay fit](video/single-index.mp4)
 
-----
+---
+
+Can we know if something has already been seen without even touching the database?
+
+---
+
+# Bloom filter [^bloom]
+
+Used as an optimization in many data stores to avoid searching/index lookup e.g. 
+
+* Cassandra 
+* Riak 
+
+
+[^bloom]: A Bloom filter is a space-efficient probabilistic data structure, conceived by Burton Howard Bloom in 1970, that is used to test whether an element is a member of a set [https://en.wikipedia.org/wiki/Bloom_filter](https://en.wikipedia.org/wiki/Bloom_filter) 
+
+^A bloom filter can tell if something definitely is not present (has NOT been seen)
+^It cannot tell if something has been seen/exists
+^Typically used in Sorted String Table datastores to avoid searching for objects in files
+
+---
+
+Using a bloom filter ([gmcabrita/bloomex](https://github.com/gmcabrita/bloomex))
+
+
+```elixir
+defmodule Bloomer do
+ use GenServer
+
+  def start_link(_) do
+    GenServer.start_link(__MODULE__, nil, name: __MODULE__)
+  end
+
+  def add(element) do
+    GenServer.cast( __MODULE__, {:add, element})
+  end
+
+  def exists(element) do
+    GenServer.call( __MODULE__, {:exists, element})
+  end
+
+  @impl true
+  def init(_) do
+    {:ok, Bloomex.scalable(1000, 0.1, 0.1, 2) }
+  end
+
+  @impl true
+  def handle_call({:exists,element} , _from, state) do
+    exists = Bloomex.member?(state, element)
+    {:reply, exists, state}
+  end
+
+  @impl true
+  def handle_cast({:add, element}, state) do
+    {:noreply, Bloomex.add(state, element) }
+  end
+end
+```
+
+---
+
+Add the GenServer to the supervison tree of your application module
+
+
+```elixir
+defmodule Chat.Application do
+  # See https://hexdocs.pm/elixir/Application.html
+  # for more information on OTP Applications
+  @moduledoc false
+
+  use Application
+
+  def start(_type, _args) do
+    # List all child processes to be supervised
+    children = [
+      Bloomer,
+      Chat.Repo
+```
+---
+
+![autoplay bottom fit loop](video/bloomer.mp4)
+
+---
+
+Integrate the bloom filter into the storage module 
+
+
+```elixir
+    retry with: exponential_backoff()  |> Enum.take(10) , rescue_only: [DBConnection.ConnectionError,Postgrex.Error]   do
+      IO.puts("attempting to insert changeset - #{DateTime.utc_now}")
+      changeset = Chat.Flight.Booking.changeset(%Chat.Flight.Booking{}, booking)
+
+      if Bloomer.exists {:booking, changeset.changes.entity_hash}  do
+        Logger.warn("Possible duplicate booking #{inspect(booking)}")
+      end
+      Bloomer.add {:booking, changeset.changes.entity_hash}
+```
+
+```
+Bookings.insert_booking_with_retry(input)
+```
+
+```
+attempting to insert changeset - 2020-03-01 10:49:07.485984Z
+[warn] Possible duplicate booking %{cc_hash: "MElF6R3j3v9Sph0IczFB1y3ULsnUeXLxBgU01UwMf5A=", day: "day", entity_hash: "MElF6R3j3v9Sph0IczFB1y3ULsnUeXLxBgU01UwMf5A=", flight_number: "flight_number", hour: "hour", minute: "minute", month: "month", name: "davide", surname: "jones", year: "year"}
+```
+
+^So if something unusual was happening... the logfiles would indicate a problem
+^Slight issue - bloom filter is local to the node so if user is sending work though another node it won't be picked up 
+^Single point of failure - so use it as an indicator - and remember - it can only tell you if something has definitely NOT already been seen 
+
+
+
+---
 
 # What about the database being down? 
 
@@ -679,427 +792,19 @@ plug Plug.Session,
 ^The Plug.Sessions module has a built-in option to set the expiration of a cookie using the max_age key. For example, extending your endpoint.ex snippet would look like:
 ^The session content can also be encrypted 
 
----
-
-Trivial
 
 ---
 
-```
 
-iex(4)> cc_num_hash = :crypto.hash(:sha256,"5105105105105100") |> Base.encode64
-"MElF6R3j3v9Sph0IczFB1y3ULsnUeXLxBgU01UwMf5A="
-iex(5)> pp_num_hash = :crypto.hash(:sha256,"970478931") |> Base.encode64
-"KsU2vfI2wLbam/sdsDnuCUMW+O8if7bkvPInJ46U2V8="
+Slide content can be found at
 
-input = %{
-  name: "davey",
-  surname: "jones",
-  cc_hash: cc_num_hash,
-  pp_hash: pp_num_hash,
-  flight_number: "flight_number",
-  minute: "minute",
-  hour: "hour",
-  day: "day",
-  month: "month",
-  year: "year"
-}
-%{
-  cc_hash: "MElF6R3j3v9Sph0IczFB1y3ULsnUeXLxBgU01UwMf5A=",
-  day: "day",
-  flight_number: "flight_number",
-  hour: "hour",
-  minute: "minute",
-  month: "month",
-  name: "davey",
-  pp_hash: "KsU2vfI2wLbam/sdsDnuCUMW+O8if7bkvPInJ46U2V8=",
-  surname: "jones",
-  year: "year"
-}
+[`https://github.com/esl/bryan_cb_sf_2020_talk`](git@github.com:esl/bryan_cb_sf_2020_talk.git)
 
+Thank you to :
+* Erlang team
+* Elixir team
+* The open source community
 
-iex(12)> valid_changeset = %Ecto.Changeset{valid?: true} = Chat.Flight.Booking.changeset(%Chat.Flight.Booking{}, input)
-#Ecto.Changeset<
-  action: nil,
-  changes: %{
-    cc_hash: "MElF6R3j3v9Sph0IczFB1y3ULsnUeXLxBgU01UwMf5A=",
-    day: "day",
-    entity_hash: "PyfweS0UmHn/7vKJZhHuuFN9oqXNoh9hWyZ5axOjnLA=",
-    flight_number: "flight_number",
-    hour: "hour",
-    minute: "minute",
-    month: "month",
-    name: "davey",
-    pp_hash: "KsU2vfI2wLbam/sdsDnuCUMW+O8if7bkvPInJ46U2V8=",
-    surname: "jones",
-    year: "year"
-  },
-  errors: [],
-  data: #Chat.Flight.Booking<>,
-  valid?: true
->
 
-
-  iex(13)> Chat.Repo.insert(valid_changeset)
-[debug] QUERY OK db=4.3ms decode=1.1ms queue=3.3ms idle=9871.8ms
-INSERT INTO "flight_bookings" ("cc_hash","day","entity_hash","flight_number","hour","minute","month","name","pp_hash","surname","year","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING "id" ["MElF6R3j3v9Sph0IczFB1y3ULsnUeXLxBgU01UwMf5A=", "day", "PyfweS0UmHn/7vKJZhHuuFN9oqXNoh9hWyZ5axOjnLA=", "flight_number", "hour", "minute", "month", "davey", "KsU2vfI2wLbam/sdsDnuCUMW+O8if7bkvPInJ46U2V8=", "jones", "year", ~N[2020-02-29 09:31:54], ~N[2020-02-29 09:31:54]]
-{:ok,
- %Chat.Flight.Booking{
-   __meta__: #Ecto.Schema.Metadata<:loaded, "flight_bookings">,
-   cc_hash: "MElF6R3j3v9Sph0IczFB1y3ULsnUeXLxBgU01UwMf5A=",
-   day: "day",
-   entity_hash: "PyfweS0UmHn/7vKJZhHuuFN9oqXNoh9hWyZ5axOjnLA=",
-   flight_number: "flight_number",
-   hour: "hour",
-   id: 1,
-   inserted_at: ~N[2020-02-29 09:31:54],
-   minute: "minute",
-   month: "month",
-   name: "davey",
-   pp_hash: "KsU2vfI2wLbam/sdsDnuCUMW+O8if7bkvPInJ46U2V8=",
-   surname: "jones",
-   updated_at: ~N[2020-02-29 09:31:54],
-   year: "year"
- }}
-iex(14)> Chat.Repo.insert(valid_changeset)
-[debug] QUERY ERROR db=6.3ms queue=2.4ms idle=9600.5ms
-INSERT INTO "flight_bookings" ("cc_hash","day","entity_hash","flight_number","hour","minute","month","name","pp_hash","surname","year","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING "id" ["MElF6R3j3v9Sph0IczFB1y3ULsnUeXLxBgU01UwMf5A=", "day", "PyfweS0UmHn/7vKJZhHuuFN9oqXNoh9hWyZ5axOjnLA=", "flight_number", "hour", "minute", "month", "davey", "KsU2vfI2wLbam/sdsDnuCUMW+O8if7bkvPInJ46U2V8=", "jones", "year", ~N[2020-02-29 09:31:55], ~N[2020-02-29 09:31:55]]
-{:error,
- #Ecto.Changeset<
-   action: :insert,
-   changes: %{
-     cc_hash: "MElF6R3j3v9Sph0IczFB1y3ULsnUeXLxBgU01UwMf5A=",
-     day: "day",
-     entity_hash: "PyfweS0UmHn/7vKJZhHuuFN9oqXNoh9hWyZ5axOjnLA=",
-     flight_number: "flight_number",
-     hour: "hour",
-     minute: "minute",
-     month: "month",
-     name: "davey",
-     pp_hash: "KsU2vfI2wLbam/sdsDnuCUMW+O8if7bkvPInJ46U2V8=",
-     surname: "jones",
-     year: "year"
-   },
-   errors: [
-     unique_booking_constraint: {"has already been taken",
-      [constraint: :unique, constraint_name: "unique_traveller_index"]}
-   ],
-   data: #Chat.Flight.Booking<>,
-   valid?: false
- >}
-
-----
-
-
-
-
-```
-defmodule Bookings do
-  @moduledoc """
-  The Polls context.
-  """
-
-  import Ecto.Query, warn: false
-  alias Chat.Repo
-
-  alias Chat.Flight.Booking
-
-  def insert_booking_with_retry(
-        %{
-          name: _, surname: _, cc_hash: _, pp_hash: _, 
-          flight_number: _, minute: _, hour: _,
-          day: _, month: _, year: _ } = booking
-      ) do
-    use Retry
-
-    retry with: linear_backoff(500, 1), atoms: [], rescue_only: [DBConnection.ConnectionError] |> Enum.take(10) do
-      IO.puts("attempting to insert changeset - #{DateTime.utc_now}")
-      changeset = Chat.Flight.Booking.changeset(%Chat.Flight.Booking{}, booking)
-      Repo.insert(changeset)
-    after
-      result -> result
-    else
-      error -> error
-    end
-  end
-end
-```
-
-
-Kill the database instance 
-
-```
-
-iex(7)> Bookings.insert_booking_with_retry(input) [error] Postgrex.Protocol (#PID<0.383.0>) failed to connect: ** (DBConnection.ConnectionError) tcp connect (localhost:5432): connection refused - :econnrefused
- 
-attempting to insert changeset - 2020-02-29 11:21:37.528090Z
-[error] Postgrex.Protocol (#PID<0.391.0>) failed to connect: ** (DBConnection.ConnectionError) tcp connect (localhost:5432): connection refused - :econnrefused
-[debug] QUERY ERROR queue=2466.3ms
-INSERT INTO "flight_bookings" ("cc_hash","day","entity_hash","flight_number","hour","minute","month","name","pp_hash","surname","year","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING "id" ["cc_hash", "day", "FuQvx1zglxDVIoBMpucbDi+iy1pmDDsCUEZAtWGEUqI=", "flight_number", "hour", "minute", "month", "davey", "pp_hash", "jones", "year", ~N[2020-02-29 11:21:37], ~N[2020-02-29 11:21:37]]
-attempting to insert changeset - 2020-02-29 11:21:40.495919Z
-[error] Postgrex.Protocol (#PID<0.384.0>) failed to connect: ** (DBConnection.ConnectionError) tcp connect (localhost:5432): connection refused - :econnrefused
-[debug] QUERY ERROR queue=1498.8ms
-............
-INSERT INTO "flight_bookings" ("cc_hash","day","entity_hash","flight_number","hour","minute","month","name","pp_hash","surname","year","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING "id" ["cc_hash", "day", "FuQvx1zglxDVIoBMpucbDi+iy1pmDDsCUEZAtWGEUqI=", "flight_number", "hour", "minute", "month", "davey", "pp_hash", "jones", "year", ~N[2020-02-29 11:21:52], ~N[2020-02-29 11:21:52]]
-{:error,
- #Ecto.Changeset<
-   action: :insert,
-   changes: %{
-     cc_hash: "cc_hash",
-     day: "day",
-     entity_hash: "FuQvx1zglxDVIoBMpucbDi+iy1pmDDsCUEZAtWGEUqI=",
-     flight_number: "flight_number",
-     hour: "hour",
-     minute: "minute",
-     month: "month",
-     name: "davey",
-     pp_hash: "pp_hash",
-     surname: "jones",
-     year: "year"
-   },
-   errors: [
-     unique_booking_constraint: {"has already been taken",
-      [constraint: :unique, constraint_name: "unique_traveller_index"]}
-
-
-----
-
-
-```
-   ],
-   data: #Chat.Flight.Booking<>,
-   valid?: false
- >}
-
-
-```
-input = %{input | name: "todd"}
-
-
-iex(9)> input = %{input | name: "todd"}
-%{
-  cc_hash: "cc_hash",
-  day: "day",
-  flight_number: "flight_number",
-  hour: "hour",
-  minute: "minute",
-  month: "month",
-  name: "todd",
-  pp_hash: "pp_hash",
-  surname: "jones",
-  year: "year"
-}
-iex(10)> Bookings.insert_booking_with_retry(input) 
-attempting to insert changeset - 2020-02-29 11:25:11.295973Z
-[debug] QUERY OK db=2.4ms queue=1.8ms idle=9300.1ms
-INSERT INTO "flight_bookings" ("cc_hash","day","entity_hash","flight_number","hour","minute","month","name","pp_hash","surname","year","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING "id" ["cc_hash", "day", "oM592T6U8heG3jw6Ku08z+OswrQ6csbuF1uqFK1vbrU=", "flight_number", "hour", "minute", "month", "todd", "pp_hash", "jones", "year", ~N[2020-02-29 11:25:11], ~N[2020-02-29 11:25:11]]
-{:ok,
- %Chat.Flight.Booking{
-   __meta__: #Ecto.Schema.Metadata<:loaded, "flight_bookings">,
-   cc_hash: "cc_hash",
-   day: "day",
-   entity_hash: "oM592T6U8heG3jw6Ku08z+OswrQ6csbuF1uqFK1vbrU=",
-   flight_number: "flight_number",
-   hour: "hour",
-   id: 132,
-   inserted_at: ~N[2020-02-29 11:25:11],
-   minute: "minute",
-   month: "month",
-   name: "todd",
-   pp_hash: "pp_hash",
-   surname: "jones",
-   updated_at: ~N[2020-02-29 11:25:11],
-   year: "year"
- }}
-
-
-----
-
-
-input = %{ name: "davey", surname: "jones", cc_hash: "cc_num_hash", pp_hash: "pp_num_hash", flight_number: "flight_number", minute: "minute", hour: "hour", day: "day", month: "month", year: "year" }
-
-Bookings.insert_booking_with_retry(input) 
-
----
-
-# Bloom filter [^bloom]
-
-
-[^bloom]: A Bloom filter is a space-efficient probabilistic data structure, conceived by Burton Howard Bloom in 1970, that is used to test whether an element is a member of a set [https://en.wikipedia.org/wiki/Bloom_filter](https://en.wikipedia.org/wiki/Bloom_filter) 
-
----
-
-```elixir
-defmodule Bloomer do
- use GenServer
-
-  def start_link(_) do
-    GenServer.start_link(__MODULE__, nil, name: __MODULE__)
-  end
-
-  def add(element) do
-    GenServer.cast( __MODULE__, {:add, element})
-  end
-
-  def exists(element) do
-    GenServer.call( __MODULE__, {:exists, element})
-  end
-
-  @impl true
-  def init(_) do
-    {:ok, Bloomex.scalable(1000, 0.1, 0.1, 2) }
-  end
-
-  @impl true
-  def handle_call({:exists,element} , _from, state) do
-    exists = Bloomex.member?(state, element)
-    {:reply, exists, state}
-  end
-
-  @impl true
-  def handle_cast({:add, element}, state) do
-    {:noreply, Bloomex.add(state, element) }
-  end
-end
-```
-
----
-
-Add the GenServer to the supervison tree of your application module
-
-
-```elixir
-defmodule Chat.Application do
-  # See https://hexdocs.pm/elixir/Application.html
-  # for more information on OTP Applications
-  @moduledoc false
-
-  use Application
-
-  def start(_type, _args) do
-    # List all child processes to be supervised
-    children = [
-      Bloomer,
-      Chat.Repo
-```
-
----
-
-![autoplay bottom fit loop](video/bloomer.mp4)
-
----
-
-Which brings us onto the topic of supervision. 
-
-Don't forget nobody else has anything close to this.
-
-^ Akka has a notion of supervised actors - it's nothing close - and you 
-certainly can't verify your setup in an interactive console.
-
----
-
-But what was the point of that segway ? 
-
-
-The point is that 
-
-
-
-
-^---
-^
-^Slide content can be found at
-^
-^[`https://github.com/esl/bryan_cb_sf_2020_talk`](git@github.com:esl/bryan_cb_sf_2020_talk.git)
-^
-^
-^![right 600% ](qr-code-for-talk-source.png)
-^
-^
-^
-^
-^---
-^
-^
-^Snoop around a bit 
-^    1. The HTTP headers reveal “x-powered-by: Undertow/1”
-^    2. That’s the HTTP server that ships with JBoss 
-^    3. No surprise it’s flaky
-^    4. Yes.. I was a Java developer - I know how hard that stuff is to get right
-^
-^---
-^
-^What is Java bad at ?????
-^    1. Garbage collection - maybe a back end server was hit by stop-the-world GC
-^    2. Error handling - hard work without lots of boiler plate
-^    3. Spinning many plates (TaskExecutor)
-^    4. 
-^    5. Global error handling
-^    6. Queueing 
-^
-^----
-^
-^Global error handling
-^
-^
-^---
-^
-^```shell
-^23:11:47.098 [error] Global error handler: [
-^  initial_call: {:erl_eval, :"-expr/5-fun-3-", []},
-^  pid: #PID<0.252.0>,
-^  registered_name: [],
-^  error_info: {:error, %RuntimeError{message: "hell"},
-^   [
-^     {:erl_eval, :do_apply, 6, [file: 'erl_eval.erl', line: 678]},
-^     {Task.Supervised, :invoke_mfa, 2,
-^      [file: 'lib/task/supervised.ex', line: 90]},
-^     {Task.Supervised, :reply, 5, [file: 'lib/task/supervised.ex', line: 35]},
-^     {:proc_lib, :init_p_do_apply, 3, [file: 'proc_lib.erl', line: 249]}
-^   ]},
-^  ancestors: [#PID<0.108.0>, #PID<0.81.0>],
-^  message_queue_len: 0,
-^  messages: [], 
-^  links: [#PID<0.108.0>],
-^  dictionary: ["$callers": [#PID<0.108.0>]],
-^  trap_exit: false,
-^  status: :running,
-^  heap_size: 6772,
-^  stack_size: 27,
-^  reductions: 2213
-^]
-```
-
----
-  
-```
-:error_logger.delete_report_handler(Global.Logger)
-```
-
-----
-Queueing 
-
-shinyscorpion/task_bunny
-akira/exq
-
-Job retry
-
-
-
-Unique constraints 
-
-----
-
-Dynamic supervision 
-
-
-``
-
-iex(102)> {:ok, sup_pid}  = DynamicSupervisor.start_link(DynamicSupervisor, [strategy: :one_for_one], [name:  MyStack])
-{:ok, #PID<0.905.0>}
-iex(103)> DynamicSupervisor.which_children(MyStack)                                                                    
-[]
-```
-
----
+![right 600% ](images/qr-code-for-talk-source.png)
 
