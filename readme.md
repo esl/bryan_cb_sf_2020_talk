@@ -11,18 +11,28 @@ Bryan Hunt (ESL)
 
 ---
 
-* Slinging code for 20 years [^list] 
-* Writing Elixir for about 5 years now 
-* Elixir is my favorite language ever
-* Elixir doesn't just make the hard things possible 
-* Elixir makes the hard things easy
-* Elixir lacks drama 
-* Elixir is boring
+* Slinging code for 20 years [^brag_list] 
+* Writing Elixir for about 5 years now
 
-[^list]: Perl, VB, C, C++, PHP, Python, Java, Scala, Javascript, Actionscript, Erlang, Shell, Ansible, Zsh, AWK, Sed, etc, etc .... yawn
+
+[^brag_list]: Perl, VB, C, C++, PHP, Python, Java, Scala, Javascript, Actionscript, Erlang, Shell, Ansible, Zsh, AWK, Sed, etc, 😴
 
 ![fit](images/esl-background.png)
 
+---
+
+# Why I like Elixir
+
+* Elixir has lovely syntax and UX  💃
+* Elixir makes hard things easy ✅ 
+* Elixir also makes easy things easy ✅ 
+* Elixir lacks drama ✅  
+* Elixir is stable/boring ✅
+* Elixir doesn't just crash 〽 [^stg] and burn 🔥
+
+![fit](images/esl-background.png)
+
+[^stg]: Unlike the £
 ^ elixir is boring
 
 ---
@@ -30,12 +40,11 @@ Bryan Hunt (ESL)
 ![](images/Aer_Lingus_EI-DUB_A330.jpg)
 
 
-# Talk overview
+# Talk objectives
 
-
-1. To rant about Aer Lingus in front of a live audience...
-2. A superficial analysis of what may have gone wrong.
-3. How to build better functionality using Elixir and Postgres [^*]
+1. Platform to rant about Aer Lingus double charging me.
+2. An analyis of why their system double charged me.
+3. Some techniques which we could use to build a more reliable system.
 
 [^*]: Or something resembling Postgres...
 
@@ -85,37 +94,83 @@ Receive a booking confirmation at 8:03 PM - the flight is booked !
 # Actually, fail !
 
 * Another booking confirmation, this time at 8:15 PM..
-* Check the bank account - charged twice.
+* Check my bank account - billed twice.
+* Activate the online chat - it times out 
+* Call the website helpdesk... no answer.. 
+* Maybe I'm not the only one having issues
 
 ---
 
-* Contact the online chat.. leave the window open for 40 minutes, nobody answers.
-* Call the website helpdesk... no answer.. maybe I'm not the only one having issues.
+![](images/Aer_Lingus_EI-DUB_A330.jpg)
 
-> Website Helpdesk
-> 0333 006 6920
-> Mon-Fri 08:00-06:00
-> Sat-Sun & Bank Holidays: 09:00-06:00     
-> 
-> Reservations
-> 0333 004 5000
-> Mon-Fri 08:00-6:00
-> Sat-Sun & Bank Holidays: 09:00-06:00     
+# Good luck with that ! 
 
+[.column]
+
+> Website Helpdesk 
+> 0333 006 6920 
+> Mon-Fri 
+> 08:00-06:00 
+> Sat-Sun & Bank Holidays: 
+> 09:00-06:00     
+
+[.column]
+
+> Reservations 
+> 0333 004 5000 
+> Mon-Fri: 
+> 08:00-6:00 
+> Sat-Sun & Bank Holidays: 
+> 09:00-06:00
+
+ 
 ---
 
 # Aftermath 
 
-* Sporadically harass Aer Lingus on social media/Linkedin
-* Ponder how such a thing is possible
-* If I had to do implement something similar would Elixir make it any easier?
+* Whine about Aer Lingus on social media/Linkedin
+* Ponder what went wrong 
+* Could I implement a better system in Elixir? [^spoilers]
 
-----
+![](images/Aer_Lingus_EI-DUB_A330.jpg)
 
+[^spoilers]: HTTP header leakage reveals it's running on Java/JBOSS - of course we can.. 
+
+---
+
+# What could we improve? 
+
+1. Error detection 
+2. Fault tolerance
+3. Session storage 
+5. Prevent double billing 
+
+^Error detection - the customer shouldn't have to chase a system error.  
+^Tolerate failure - improve reliability of network calls (database/microservices).  
+^Session storage - Handle more customers (sessions) at once with fewer physical resources.
+^Session storage - Allow a user session to live longer (5 minute timeout are too short).
+^Prevent double billing - Prevent duplicate writes to a relational database.
+^Prevent double billing - Prevent duplicate writes to anything.
+
+---
 
 ![fit original](out/puml/how-booking-should-work/overview.png)
 
-----
+---
+
+
+![fit original](out/puml/how-booking-was-probably-implemented/overview.png)
+
+
+---
+
+
+
+---
+
+![fit original](out/puml/how-booking-should-work/overview.png)
+
+---
 
 
 ![fit original](out/puml/how-booking-was-probably-implemented/overview.png)
@@ -125,18 +180,18 @@ Receive a booking confirmation at 8:03 PM - the flight is booked !
 
 # So how can we do better? 
 
-1. Capture all crashes and do something useful with them
-2. Prevent duplicate billing
-3. Gracefully handle (temporary) resource unavailability
-3. Reduce RAM and make horizontal scaling possible by not storing user sessions in RAM
-4. Reduce crashes in general with OTP 
+1. Capture systemwide crash info for later analysis
+2. Don't charge customers twice 
+3. Survive (temporary) resource unavailability
+3. Mitigate the scaling costs of user session managment
+4. Generally reduce crashes with OTP 
 5. Use a distributed/replicated database
 6. Make the customers happy 
-8. `$$$` Profit `$$$`
+8. Profit
 
 ---
 
-# Capture all crashes and do something useful with them
+# Capture systemwide crash info for later analysis
 
 * Add [bugsnag-elixir](https://github.com/jarednorman/bugsnag-elixir) as a dependency and sign up for the bugsnag service.
 * Connect [WombatOAM](https://www.erlang-solutions.com/products/wombatoam.html) to the node [^disclosure]
@@ -146,11 +201,10 @@ Receive a booking confirmation at 8:03 PM - the flight is booked !
 
 ---
 
-# Capture crashes across all BEAM processes
-
+Implementation
 
 ```elixir
-defmodule Global.Logger do
+defmodule Global.Handler do
   require Logger
   @behaviour :gen_event
 
@@ -163,6 +217,7 @@ defmodule Global.Logger do
   def handle_event({:error_report, gl, {_pid, _type, [message | _]}}, state)
       when is_list(message) and node(gl) == node() do
       Logger.error("Global error handler: #{inspect(message, pretty: true)}")
+      #Or maybe use the new (elixir 1.10.1) structured logger?
     {:ok, state}
   end
 
@@ -173,28 +228,30 @@ end
 
 ```
 
+^ Rather than `Logger.error` - do something useful? Your choice.
+
 ----
 
-# Installing/Running the error handler
+## Installing/Running the error handler
 
+Add it :
 
 ```
-:error_logger.add_report_handler(Global.Logger)
+:error_logger.add_report_handler(Global.Handler)
 ```
+
+Trap exit systems (don't kill iex):
 
 ```
 Process.flag(:trap_exit,true)
 ```
 
+Start a process that will raise/terminate:
+
 ```
 Task.async(fn -> raise "hell" end)
 ```
 
-Rather than `Logger.error` - do something useful.
-
-Or maybe just send it to the console and let a k8s event handler pick it up.
-
-Your choice.
 
 ![autoplay right fit loop](video/global.error.handler.mp4)
 

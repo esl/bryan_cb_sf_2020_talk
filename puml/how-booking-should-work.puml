@@ -1,14 +1,14 @@
 @startuml overview
 
-title How a booking system should work
+title How an ideal booking system would work
 autoactivate on
 actor User 
 User -> Website: Make booking 
-entity   EmailServer
+participant EmailServer
 Website -> Backend: Process booking
 database Database
 Backend -> Database: Write booking (check for duplicates)
-entity "Payment\nProvider" as Provider 
+participant "Payment\nProvider" as Provider 
 Backend -> Provider: Bill the card 
 return success
 Backend -> Database: Flag transaction complete
@@ -22,5 +22,6 @@ activate Sentinel
 Sentinel -> Database: Checking for \nlost/duplicate transactions, etc
 Sentinel -> EmailServer : Verifying emails successfully handed off 
 
+participant "Log\nAggregator" as LogAggregator
 Backend -> LogAggregator: application crash reports
 @enduml
