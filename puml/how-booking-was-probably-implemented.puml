@@ -1,6 +1,6 @@
 @startuml  overview
 
-title How I suspect the Aer Lingus booking system was implemented
+title How I suspect the Aer Lingus booking system is implemented
 actor User 
 autoactivate on
 User -> Website: Make booking 
@@ -19,7 +19,8 @@ par
 Backend -> Website !! : Attempt to reply
 Backend -> EmailServer: Confirm booking
 EmailServer --> User: Send confirmation email 
-Website --> User: Internal server error
+User ->  Website : refresh page
+return Internal server error
 end
 
 @enduml
