@@ -108,6 +108,7 @@ Receive a booking confirmation at 8:03 PM - the flight is booked !
 
 * Sporadically harass Aer Lingus on social media/Linkedin
 * Ponder how such a thing is possible
+* If I had to do implement something similar would Elixir make it any easier?
 
 ----
 

@@ -1,23 +1,16 @@
 @startuml overview
 
 title How a booking system should work
+autoactivate on
 actor User 
-
-actor Bruno
-Bruno -> Room : walks into room 
-Bruno -> Cup : drinks coffee
-
-
-
-
-
 User -> Website: Make booking 
 entity   EmailServer
 Website -> Backend: Process booking
 database Database
 Backend -> Database: Write booking (check for duplicates)
 entity "Payment\nProvider" as Provider 
-Backend -> Provider: Bill the card (success)
+Backend -> Provider: Bill the card 
+return success
 Backend -> Database: Flag transaction complete
 par 
 Backend -> Website: LGTM
@@ -25,6 +18,9 @@ Backend -> EmailServer: Send confirmation
 EmailServer -> User: Send email
 end
 Website -> User: LGTM
-Sentinel -> Database: Checking for lost transactions, etc
-Backend -> Sentinel : Storing application crash reports
+activate Sentinel
+Sentinel -> Database: Checking for \nlost/duplicate transactions, etc
+Sentinel -> EmailServer : Verifying emails successfully handed off 
+
+Backend -> LogAggregator: application crash reports
 @enduml

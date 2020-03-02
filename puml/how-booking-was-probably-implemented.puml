@@ -2,21 +2,24 @@
 
 title How the booking system was probably implemented
 actor User 
-
+autoactivate on
 User -> Website: Make booking 
 group "transaction"
 Website -> Backend: Process booking
 database Database
-entity "Payment\nProvider" as Provider 
-Backend -> Provider: Bill the card (success)
+participant "Payment\nProvider" as Provider 
+Backend -> Provider: Bill the card 
+return success
 note left: website dies at this point
+destroy Website
 end
 Backend -> Database: Write booking \n(no check for duplicates) 
+return yolo
 par 
-Backend -> Website: Attempt to reply
+Backend -> Website !! : Attempt to reply
 Backend -> EmailServer: Confirm booking
-EmailServer -> User: Send confirmation email 
-Website -> User: Internal server error
+EmailServer --> User: Send confirmation email 
+Website --> User: Internal server error
 end
 
 @enduml
