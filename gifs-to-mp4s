@@ -2,5 +2,6 @@
 
 for i in *.gif ; do 
 rm ${i:r}.mp4
-ffmpeg -i ./${i:r}.gif -filter:v "" -movflags faststart -pix_fmt yuv420p -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2,setpts=0.2*PTS" ./${i:r}.mp4
+ ffmpeg -i ./${i:r}.gif -movflags faststart -pix_fmt yuv420p -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2,setpts=1.0*PTS" ./${i:r}.mp4
+#ffmpeg -i ./${i:r}.gif -movflags faststart -pix_fmt yuv420p -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2,setpts=0.2*PTS" ./${i:r}.mp4
 done

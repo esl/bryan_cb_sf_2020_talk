@@ -11,9 +11,13 @@ Bryan Hunt (ESL)
 
 ---
 
-* Slinging code for 20 years [^brag_list] 
-* Writing Elixir for about 5 years now
+About me
 
+* Slinging code for 20 years [^brag_list] 
+* Writing Elixir for about 5 years now (and loving it)
+* Widely regarded as having a bad attitude
+* Make 52 slides so we'll have to move fast
+* Stop me if I curse, can't help it, I'm Irish
 
 [^brag_list]: Perl, VB, C, C++, PHP, Python, Java, Scala, Javascript, Actionscript, Erlang, Shell, Ansible, Zsh, AWK, Sed, etc, 😴
 
@@ -42,40 +46,43 @@ Bryan Hunt (ESL)
 
 # Talk objectives
 
-1. Platform to rant about Aer Lingus double charging me.
+1. Global platform to rant about Aer Lingus having double charging me.
 2. An analyis of why their system double charged me.
-3. Some techniques which we could use to build a more reliable system.
-
-[^*]: Or something resembling Postgres...
+3. Illustrate techniques to :
+  * Build a more reliable system 
+  * Not double charge customers
+  * Be aware of problems
 
 ---
 
 ![](images/Aer_Lingus_EI-DUB_A330.jpg)
 
-# Opening scene [^never forget]
+# Opening scene [^never forgive/never forget/never for fun]
 
-1. Needed to fly within the next 14 hours between Dublin and London.
-2. The website warned me there were only 3 seats remaining for the flight. 
-3. I booked and entered credit card details (after dealing with a couple of session timeouts)
-4. The website crashed and locked me out after trying to sign me up for their loyalty scheme (the irony)
-5. Waited 30 minutes (no email confirmation)... 
+1. Emergency! I need to fly from Dublin to London early tomorrow morning. 
+2. The website warns me there are only 3 seats remaining for the flight. 
+3. I select flight, don't care which seat, and enter my credit card details (after dealing with a couple of session timeouts).
+4. The Aer Lingus website: 
+  * Insists I sign up for their loyalty scheme (the sweet, sweet irony).
+  * Crashes.
+  * Locks me out.
+5. I wait 30 minutes and don't receive any email confirmation
 6. Panic 😧
 
-[^never forget]: Happened nearly 4 years ago but I still want my £95.99 back
+[^never forgive/never forget/never for fun]: This happened nearly 4 years ago but I still want my £95.99 back (with interest)
 
 ---
 
-# Desperation
+# A desperate fool
 
 ![](images/Aer_Lingus_EI-DUB_A330.jpg)
 
-1. Fresh browser
-2. Start the booking process
-3. Decline the Aer Lingus loyalty scheme 😱
+1. Fresh browser.
+2. Start the booking process from scratch.
+3. Decline the Aer Lingus loyalty scheme 😱.
 4. Use the same name, email, and credit card.
 5. On the second attempt, the booking succeeded.
-6. Fingers crossed...
-
+6. Nervously await booking confirmation.
 
 ---
 
@@ -84,7 +91,9 @@ Bryan Hunt (ESL)
 
 ![](images/Aer_Lingus_EI-DUB_A330.jpg)
 
-Receive a booking confirmation at 8:03 PM - the flight is booked !
+Receive a booking confirmation at 8:03 PM - I will fly to London! [^rain_and_horrible_food]
+
+[^rain_and_horrible_food]: Where it's almost certainly raining, and £10 for a pizza which an Italian would use to wipe the floor.
 
 ---
 
@@ -105,6 +114,9 @@ Receive a booking confirmation at 8:03 PM - the flight is booked !
 
 # Good luck with that ! 
 
+> I can guarantee there's nobody listening on either of these two numbers
+-- Me
+
 [.column]
 
 > Website Helpdesk 
@@ -123,7 +135,6 @@ Receive a booking confirmation at 8:03 PM - the flight is booked !
 > Sat-Sun & Bank Holidays: 
 > 09:00-06:00
 
- 
 ---
 
 # Aftermath 
@@ -134,13 +145,13 @@ Receive a booking confirmation at 8:03 PM - the flight is booked !
 
 ![](images/Aer_Lingus_EI-DUB_A330.jpg)
 
-[^spoilers]: HTTP header leakage reveals it's running on Java/JBOSS - of course we can.. 
+[^spoilers]: HTTP header leakage reveals it's running on Java/JBOSS - so of course we can.. 
 
 ---
 
 # What could we improve? 
 
-1. Error detection 
+1. Error detection/notification 
 2. Fault tolerance
 3. Session storage 
 5. Prevent double billing 
@@ -161,47 +172,21 @@ Receive a booking confirmation at 8:03 PM - the flight is booked !
 
 ![fit original](out/puml/how-booking-was-probably-implemented/overview.png)
 
-
 ---
 
+# Error detection/notification
 
-
----
-
-![fit original](out/puml/how-booking-should-work/overview.png)
-
----
-
-
-![fit original](out/puml/how-booking-was-probably-implemented/overview.png)
-
-
----
-
-# So how can we do better? 
-
-1. Capture systemwide crash info for later analysis
-2. Don't charge customers twice 
-3. Survive (temporary) resource unavailability
-3. Mitigate the scaling costs of user session managment
-4. Generally reduce crashes with OTP 
-5. Use a distributed/replicated database
-6. Make the customers happy 
-8. Profit
-
----
-
-# Capture systemwide crash info for later analysis
-
-* Add [bugsnag-elixir](https://github.com/jarednorman/bugsnag-elixir) as a dependency and sign up for the bugsnag service.
-* Connect [WombatOAM](https://www.erlang-solutions.com/products/wombatoam.html) to the node [^disclosure]
+* Add [bugsnag-elixir](https://github.com/jarednorman/bugsnag-elixir) as a dependency and sign up for the bugsnag software as a service (GDPR?).
+* Connect [WombatOAM](https://www.erlang-solutions.com/products/wombatoam.html) to the node [^disclosure] and use it to detect errors.
 * Write your own global error handler...
 
 [^disclosure]: ESL product
 
 ---
 
-Implementation
+# Global error handler implementation
+
+---
 
 ```elixir
 defmodule Global.Handler do
@@ -232,60 +217,62 @@ end
 
 ----
 
-## Installing/Running the error handler
+## Using the global error handler
 
 Add it :
 
 ```
-:error_logger.add_report_handler(Global.Handler)
+  :error_logger.add_report_handler(Global.Handler)
 ```
 
-Trap exit systems (don't kill iex):
+Trap exit signals
 
 ```
-Process.flag(:trap_exit,true)
+  Process.flag(:trap_exit,true)
 ```
 
-Start a process that will raise/terminate:
+Spawn at process which will raise an exception/terminate
 
 ```
-Task.async(fn -> raise "hell" end)
+  Task.async(fn -> raise "hell" end)
 ```
-
 
 ![autoplay right fit loop](video/global.error.handler.mp4)
 
+
+^ Trap exit signals (don't kill iex):
+
 ---
 
-# Handling a task that fails 
+# Fault tolerance
 
-Code your own retry handling logic or use one that already exists
+Lets concentrate on handling calls to another system which is temporarily failing.
 
+We need an intelligent way to retry failed operations 
+
+* Code your own retry handling logic? 
+* Luke! Use the (open) source! 
 
 Options: 
 
 * [safwank/ElixirRetry](https://github.com/safwank/ElixirRetry)
-
 * [IanLuites/with_retry](https://github.com/IanLuites/with_retry)
-
 
 ^Retry is more recently updated and I'm currently using it on a project, so we'll use it for this example
 
 ---
 
-
 Using Retry library ([safwank/ElixirRetry](https://github.com/safwank/ElixirRetry))
-
-
-[.column]
 
 
 ```elixir
 use Retry
-retry with: linear_backoff(500, 1) |> Enum.take(5) do
+retry with: exponential_backoff(1000,2) |> 
+  jitter() |> 
+  Enum.take(5) do
   countdown = Process.get(:countdown,0)   
   IO.puts("counter: #{countdown}, #{DateTime.utc_now}" )
-  if countdown < 3 do
+  if countdown < 4 do
     Process.put(:countdown, countdown + 1)
     raise "countdown too low - trying again..."
   else 
@@ -298,29 +285,120 @@ retry with: linear_backoff(500, 1) |> Enum.take(5) do
 end
 ```
 
-[.column]
+![autoplay right fit loop](video/retry.mp4)
 
-
-```
-counter: 0, 2020-02-29 09:54:11.935722Z
-counter: 1, 2020-02-29 09:54:12.436910Z
-counter: 2, 2020-02-29 09:54:12.939001Z
-counter: 3, 2020-02-29 09:54:13.441907Z
-```
 
 ^ Ships with various backoff options - exponential, linear, can also be configured to only handle certain exceptions. 
 ^ recognises tuple starting with :error as an error (can't be overriden but you can configure it to recognise other atoms as well
 
-----
-
-# Implementing unique constraints 
 
 ---
 
-### Schema
+Quick shout out to the Elixir macro overlords [^java (™)]
+
+
+```
+cat retry4j/src/**/*.java | wc -l 
+    3178
+```
+
+```
+cat deps/retry/lib/**/*.ex | wc -l 
+     464
+```
+
+[^java (™)]: And I'm so grateful not to be coding Java...
+
+^The thing is, implementing something like this in Elixir is very easy
+
+
+
+
+----
+
+# Session storage 
+
+> "Your session has timed out after 5 minutes of inactivity, please start again and wade through the 20 screens the marketing "people" insisted on adding to the booking flow..."
+-- Every Java/.Net website ever
+
+
+^Ever notice how when the session times out - airline websites always set the travel dates to two weeks in the future - don't they know what cookies are for? 
+---
+
+# We need to talk about session storage
+
+Issues : 
+
+* [Memory constraints](https://stackoverflow.com/questions/11956038/what-happens-to-a-java-web-containers-memory-when-there-are-too-many-concurrent) 
+* Restart the server - lose all sessions
+* Horizontal scaling 
+
+^ Every session is stored in memory (webserver or some distributed system)
+^Store the session data in a datastore
+
+---
+
+# Session storage in Plug/Phoenix
+
+---
+
+![fit](out//puml/server-side-web-sessions/overview.png )
+
+---
+
+![fit](out//puml/phoenix-and-plug-web-sessions/overview.png)
+
+---
+
+# How do we configure session storage in Phoenix/Plug
+
+`endpoint.ex`
 
 ```elixir
-defmodule Chat.Repo.Migrations.CreateFlightBookings do
+plug Plug.Session,
+  store: :cookie,
+  key: "_chat_key",
+  signing_salt: "cKjB7sPT"
+  max_age: 24*60*60*30  # 30 days
+```
+
+> Trivial
+
+^The Plug.Sessions module has a built-in option to set the expiration of a cookie using the max_age key. For example, extending your endpoint.ex snippet would look like:
+^The session content can also be encrypted 
+
+
+---
+
+# Prevent double billing
+
+---
+
+# Unique database constraints 
+
+---
+
+# Ecto (Elixir persistence framework)
+
+Basic concepts 
+
+* Migration
+* Changeset
+* Repo 
+* Conveniences
+
+^ Schema - where you define the database structure
+^ Changeset - represents changes - you feed this into the Ecto.Repo
+^ Repo - provides functions for storing and retrieving data
+
+----
+
+
+### Migration
+
+[.column]
+```elixir
+defmodule Airline.Repo.Migrations.CreateFlightBookings do
   use Ecto.Migration
 
   def change do
@@ -337,12 +415,22 @@ defmodule Chat.Repo.Migrations.CreateFlightBookings do
 
       timestamps()
     end
-
+.....
+```
+[.column]
+```elixir
     create unique_index(
              :flight_bookings,
-             [ :name, :surname, :cc_hash, :flight_number, :minute, :hour, :day, :month, :year ],
-             name: :unique_traveller_index
-           )
+             [:name,
+              :surname,
+              :cc_hash,
+              :flight_number,
+              :minute,
+              :hour,
+              :day,
+              :month,
+              :year ],
+             name: :unique_traveller_index)
   end
 end
 ```
@@ -351,10 +439,11 @@ end
 
 ---
 
-### Module
+### Changeset
 
+[.column]
 ```elixir
-defmodule Chat.Flight.Booking do
+defmodule Airline.Flight.Booking do
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -371,13 +460,33 @@ defmodule Chat.Flight.Booking do
 
     timestamps()
   end
-
+```
+[.column]
+```elixir
   @doc false
-  def changeset(booking, attrs) do
-    booking
-    |> cast(attrs, [ :name, :surname, :cc_hash,  :flight_number, :minute, :hour, :day, :month, :year ])
-    |> validate_required([ :name, :surname, :cc_hash,  :flight_number, :minute, :hour, :day, :month, :year ])
-    |>  unique_constraint(:unique_booking_constraint, name: :unique_traveller_index)
+  def changeset(booking, %{} = attrs) do
+    booking |> cast(attrs,[ 
+                    :name,
+                    :surname,
+                    :cc_hash,
+                    :flight_number,
+                    :minute,
+                    :hour,
+                    :day,
+                    :month,
+                    :year ])
+    |> validate_required([ 
+                    :name,
+                    :surname,
+                    :cc_hash,
+                    :flight_number,
+                    :minute,
+                    :hour,
+                    :day,
+                    :month,
+                    :year])
+    |>  unique_constraint(:unique_booking_constraint, 
+name: :unique_traveller_index)
   end
 
 end
@@ -389,12 +498,42 @@ end
 ^ if the unique constraint has been violated or not and, if so, Ecto converts it into a changeset error.
 ^ naive implementation - indexes are not free - they slow up writes
 
+
+---
+
+# Repo
+
+> A repository maps to an underlying data store, controlled by the adapter. For example, Ecto ships with a Postgres adapter that stores data into a PostgreSQL database.
+
+---
+
+# Convenience 
+
+[.column]
+Generated most of the prior code with the following command:
+
+[.column]
+```bash
+mix phx.gen.schema \
+  Booking \
+  flight_bookings \
+  name \
+  surname \
+  cc_hash \
+  flight_number \
+  minute \
+  hour \
+  day \
+  month \
+  year 
+```
+
 ---
 
 Using the Ecto changeset for validation without using the database
 
 ```
-iex(8)> Chat.Flight.Booking.changeset(%Chat.Flight.Booking{}, %{})                                                            
+iex(8)> Airline.Flight.Booking.changeset(%Airline.Flight.Booking{}, %{})                                                            
 #Ecto.Changeset<
   action: nil,
   changes: %{},
@@ -410,7 +549,7 @@ iex(8)> Chat.Flight.Booking.changeset(%Chat.Flight.Booking{}, %{})
     month: {"can't be blank", [validation: :required]},
     year: {"can't be blank", [validation: :required]}
   ],
-  data: #Chat.Flight.Booking<>,
+  data: #Airline.Flight.Booking<>,
   valid?: false
 >
 ```
@@ -422,7 +561,6 @@ Generate a validated changeset
 
 ```
 cc_num_hash = :crypto.hash(:sha256,"5105105105105100") |> Base.encode64
-pp_num_hash = :crypto.hash(:sha256,"970478931") |> Base.encode64
  
 
 input = %{
@@ -437,20 +575,20 @@ input = %{
   year: "year"
 }
 
-valid_changeset = %Ecto.Changeset{valid?: true} = Chat.Flight.Booking.changeset(%Chat.Flight.Booking{}, input)
+valid_changeset = %Ecto.Changeset{valid?: true} = Airline.Flight.Booking.changeset(%Airline.Flight.Booking{}, input)
 
 ```
 
 ---
 
-Insert fresh data 
+Insert unique data 
 
 ```
-iex(7)> Chat.Repo.insert(valid_changeset)                                                                             
+iex(7)> Airline.Repo.insert(valid_changeset)                                                                             
 [debug] QUERY OK db=3.4ms decode=1.4ms queue=2.2ms idle=9906.6ms
 INSERT INTO "flight_bookings" ("cc_hash","day", SNIP...
 {:ok,
- %Chat.Flight.Booking{
+ %Airline.Flight.Booking{
    __meta__: #Ecto.Schema.Metadata<:loaded, "flight_bookings">,
    cc_hash: "cc_hash",
    day: "day",
@@ -469,10 +607,10 @@ INSERT INTO "flight_bookings" ("cc_hash","day", SNIP...
 
 ---
 
-Insert stale data
+Insert duplicate data
 
 ```
-iex(8)> Chat.Repo.insert(valid_changeset)
+iex(8)> Airline.Repo.insert(valid_changeset)
 
 [debug] QUERY ERROR db=7.4ms queue=1.9ms idle=9324.1ms
 INSERT INTO "flight_bookings" ("cc_hash","day", SNIP...
@@ -493,18 +631,17 @@ INSERT INTO "flight_bookings" ("cc_hash","day", SNIP...
    errors: [
      unique_booking_constraint: {"has already been taken", [constraint: :unique, constraint_name: "unique_traveller_index"]}
    ],
-   data: #Chat.Flight.Booking<>,
+   data: #Airline.Flight.Booking<>,
    valid?: false
  >}
 
 ```
 
-^ That was cool - we seem to be relatively safe - but that's 9 database indexes - things are going to get slow
+^ That was useful - we seem to be relatively safe - but that's 9 database indexes - things are going to get slow
 
 ---
 
 # Lets try something a little more efficient 
-
 
 
 ^ we don't necessarily want random access to all of those columns but we do want to prevent duplicates.
@@ -512,11 +649,13 @@ INSERT INTO "flight_bookings" ("cc_hash","day", SNIP...
 
 ---
 
-We add a column to the Booking module `:entity_hash`.
+We add an `:entity_hash` column to the Booking module 
 
+
+[.column]
 
 ```elixir
-defmodule Chat.Flight.Booking do
+defmodule Airline.Flight.Booking do
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -539,12 +678,11 @@ defmodule Chat.Flight.Booking do
     timestamps()
   end
 
-SNIP
-
 ```
+
 ---
 
-And we modify the changeset function to pre-calculate the hash before we store to the database
+And modify the changeset function to calculate the hash of the unique fields before we store a booking to the database
 
 ```elixir
   @doc false
@@ -570,8 +708,8 @@ end
 
 The schema/migration now becomes the much more reasonable 
 
-```
-defmodule Chat.Repo.Migrations.CreateFlightBookings do
+```elixir
+defmodule Airline.Repo.Migrations.CreateFlightBookings do
   use Ecto.Migration
 
   def change do
@@ -598,19 +736,19 @@ end
 
 ---
 
-Lets try it out... 
-
-![autoplay fit](video/single-index.mp4)
+![autoplay fit loop](video/single-index.mp4)
 
 ---
 
-Can we know if something has already been seen without even touching the database?
+# Can we be even more efficient?
+
+> Can we know if a booking has already passed through the system without touching the database?
 
 ---
 
 # Bloom filter [^bloom]
 
-Used as an optimization in many data stores to avoid searching/index lookup e.g. 
+Used as an optimization in many data stores to avoid searching/index lookup when the entity just doesn't exist.
 
 * Cassandra 
 * Riak 
@@ -618,6 +756,7 @@ Used as an optimization in many data stores to avoid searching/index lookup e.g.
 
 [^bloom]: A Bloom filter is a space-efficient probabilistic data structure, conceived by Burton Howard Bloom in 1970, that is used to test whether an element is a member of a set [https://en.wikipedia.org/wiki/Bloom_filter](https://en.wikipedia.org/wiki/Bloom_filter) 
 
+^Used in Riak/Cassandra to check if a file definitely doesn't contain a record
 ^A bloom filter can tell if something definitely is not present (has NOT been seen)
 ^It cannot tell if something has been seen/exists
 ^Typically used in Sorted String Table datastores to avoid searching for objects in files
@@ -626,6 +765,7 @@ Used as an optimization in many data stores to avoid searching/index lookup e.g.
 
 Using a bloom filter ([gmcabrita/bloomex](https://github.com/gmcabrita/bloomex))
 
+[.column]
 
 ```elixir
 defmodule Bloomer do
@@ -642,7 +782,10 @@ defmodule Bloomer do
   def exists(element) do
     GenServer.call( __MODULE__, {:exists, element})
   end
+```
+[.column]
 
+```elixir
   @impl true
   def init(_) do
     {:ok, Bloomex.scalable(1000, 0.1, 0.1, 2) }
@@ -667,7 +810,7 @@ Add the GenServer to the supervison tree of your application module
 
 
 ```elixir
-defmodule Chat.Application do
+defmodule Airline.Application do
   # See https://hexdocs.pm/elixir/Application.html
   # for more information on OTP Applications
   @moduledoc false
@@ -678,7 +821,7 @@ defmodule Chat.Application do
     # List all child processes to be supervised
     children = [
       Bloomer,
-      Chat.Repo
+      Airline.Repo
 ```
 ---
 
@@ -686,105 +829,47 @@ defmodule Chat.Application do
 
 ---
 
-Integrate the bloom filter into the storage module 
+# Add the bloom filter into the storage module 
 
 
 ```elixir
-    retry with: exponential_backoff()  |> Enum.take(10) , rescue_only: [DBConnection.ConnectionError,Postgrex.Error]   do
-      IO.puts("attempting to insert changeset - #{DateTime.utc_now}")
-      changeset = Chat.Flight.Booking.changeset(%Chat.Flight.Booking{}, booking)
-
-      if Bloomer.exists {:booking, changeset.changes.entity_hash}  do
-        Logger.warn("Possible duplicate booking #{inspect(booking)}")
-      end
-      Bloomer.add {:booking, changeset.changes.entity_hash}
-```
-
-```
-Bookings.insert_booking_with_retry(input)
-```
-
-```
-attempting to insert changeset - 2020-03-01 10:49:07.485984Z
-[warn] Possible duplicate booking %{cc_hash: "MElF6R3j3v9Sph0IczFB1y3ULsnUeXLxBgU01UwMf5A=", day: "day", entity_hash: "MElF6R3j3v9Sph0IczFB1y3ULsnUeXLxBgU01UwMf5A=", flight_number: "flight_number", hour: "hour", minute: "minute", month: "month", name: "davide", surname: "jones", year: "year"}
+changeset = Airline.Flight.Booking.changeset(%Airline.Flight.Booking{}, booking)
+if Bloomer.exists {:booking, changeset.changes.entity_hash}  do
+  Logger.warn("Possible duplicate booking #{inspect(booking)}")
+end
+Bloomer.add {:booking, changeset.changes.entity_hash}
 ```
 
 ^So if something unusual was happening... the logfiles would indicate a problem
 ^Slight issue - bloom filter is local to the node so if user is sending work though another node it won't be picked up 
 ^Single point of failure - so use it as an indicator - and remember - it can only tell you if something has definitely NOT already been seen 
 
-
-
 ---
 
 # What about the database being down? 
-
 
 ^ how can we handle intermittend database failures on the critical path?
 
 ---
 
-Using Retry library ([safwank/ElixirRetry](https://github.com/safwank/ElixirRetry))
+Remember Retry? 
 
-```
-iex(23)> retry with: linear_backoff(500, 1) |> Enum.take(5) do
-...(23)>   countdown = Process.get(:countdown,0)   
-...(23)>   IO.puts("counter: #{countdown}, #{DateTime.utc_now}" )
-...(23)>   if countdown < 3 do
-...(23)>     Process.put(:countdown, countdown + 1)
-...(23)>     raise "countdown too low - trying again..."
-...(23)>   else 
-...(23)>     :ok
-...(23)>   end
-...(23)>   after
-...(23)>     result -> result
-...(23)>   else
-...(23)>     error -> error
-...(23)> end
-counter: 0, 2020-02-29 09:54:11.935722Z
-counter: 1, 2020-02-29 09:54:12.436910Z
-counter: 2, 2020-02-29 09:54:12.939001Z
-counter: 3, 2020-02-29 09:54:13.441907Z
-```
-
----
-
-Quick shout out to the Elixir macro overlords [^java (™)]
-
-
-```
-cat retry4j/src/**/*.java | wc -l 
-    3178
-```
-
-```
-cat deps/retry/lib/**/*.ex | wc -l 
-     464
-```
-
-[^java (™)]: And I'm so grateful not to be coding Java...
-
-^The thing is, implementing something like this in Elixir is very easy
-
----
-
-We can use Retry to retry database inserts - in the situation where the database is down.
-
+We can use Retry to retry database inserts 
 
 ```
 
 defmodule Bookings do
 
   import Ecto.Query, warn: false
-  alias Chat.Repo
-  alias Chat.Flight.Booking
+  alias Airline.Repo
+  alias Airline.Flight.Booking
 
-  def insert_booking_with_retry( %{ name: _, surname: _, cc_hash: _, flight_number: _, minute: _, hour: _, day: _, month: _, year: _ } = booking) do
+  def insert_booking_with_retry( %{ name:_, surname:_, cc_hash:_, flight_number:_, minute:_, hour:_, day:_, month:_, year:_ } = booking) do
     use Retry
 
     retry with: exponential_backoff()  |> Enum.take(10) , rescue_only: [DBConnection.ConnectionError]   do
       IO.puts("attempting to insert changeset - #{DateTime.utc_now}")
-      changeset = Chat.Flight.Booking.changeset(%Chat.Flight.Booking{}, booking)
+      changeset = Airline.Flight.Booking.changeset(%Airline.Flight.Booking{}, booking)
       case Repo.insert(changeset) do
         {:error, changeset = %{valid?: false}  } -> {:invalid_changeset, changeset }
         other -> other
@@ -804,57 +889,20 @@ demo
 
 ![autoplay loop](video/up-n-down.mp4)
 
-----
+---
 
-# What about server session timeouts? 
+# What could we improve? 
 
-The session keeps timing out ....
-
-* [Memory constraints](https://stackoverflow.com/questions/11956038/what-happens-to-a-java-web-containers-memory-when-there-are-too-many-concurrent) 
-* Restart the server - lose all sessions
-* Store the session data in a datastore
-
-
-^So this is where you search for a flight - get distracted for 10 minutes by something else
-^Come back and the dates have reset to 2 weeks in the future
-^M
+1. Error detection/notification ✅  
+2. Fault tolerance ✅
+3. Session storage ✅
+5. Prevent double billing ✅
 
 ---
 
-# Session storage in Plug/Phoenix
+# Thanks for listening!
 
----
-
-![fit](out//puml/phoenix-and-plug-web-sessions/overview.png)
-
----
-
-![fit](out//puml/server-side-web-sessions/overview.png )
-
----
-
-# How do we configure session storage in Phoenix/Plug
-
-`endpoint.ex`
-
-```elixir
-plug Plug.Session,
-  store: :cookie,
-  key: "_chat_key",
-  signing_salt: "cKjB7sPT"
-  max_age: 24*60*60*30  # 30 days
-```
-
-> Trivial
-
-^The Plug.Sessions module has a built-in option to set the expiration of a cookie using the max_age key. For example, extending your endpoint.ex snippet would look like:
-^The session content can also be encrypted 
-
-
----
-
-
-Slide content can be found at
+Slide (markdown) content can be found at
 
 [`https://github.com/esl/bryan_cb_sf_2020_talk`](git@github.com:esl/bryan_cb_sf_2020_talk.git)
 
@@ -862,7 +910,6 @@ Thank you to :
 * Erlang team
 * Elixir team
 * The open source community
-
+* Erlang solutions for flying me out to sunny USA
 
 ![right 600% ](images/qr-code-for-talk-source.png)
-

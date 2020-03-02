@@ -1,20 +1,21 @@
 @startuml overview
 
-title How phoenix/plug browser sessions work 
+title Phoenix/Plug browser sessions 
 actor Browser 
-
+autoactivate on
 == Session creation ==
-activate Website
+' activate Browser
 Browser -> Website: request page
-Website -> Website: encrypted/signed \nsession data into cookie
+Website -> Website: encrypt/sign \nsession data into cookie
 Website --> Browser: return page and cookie
 Browser -> Browser: manage cookie expiration
-
+' deactivate Browser
 == User inactive ==
-Browser -> Browser: inactive
+Browser -> Browser !! : inactive
 
 == User active ==
-Browser -> Website: request page
-return page and updated session 
-
+' activate Browser
+Browser -> Website: request page \n (session in cookie)
+Website -> Website: decode session 
+Website -> Browser: return page and updated session
 @enduml
