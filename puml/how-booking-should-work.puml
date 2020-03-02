@@ -24,4 +24,8 @@ Sentinel -> EmailServer : Verifying emails successfully handed off
 
 participant "Log\nAggregator" as LogAggregator
 Backend -> LogAggregator: application crash reports
+
+actor OpsTeam  
+OpsTeam -> LogAggregator: checking logs
+Sentinel -> OpsTeam: sending notifications
 @enduml
