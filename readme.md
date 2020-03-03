@@ -13,11 +13,10 @@ Bryan Hunt (ESL)
 
 About me
 
-* Slinging code for 20 years [^brag_list] 
-* Writing Elixir for about 5 years now (and loving it)
-* Widely regarded as having a bad attitude
-* Make 52 slides so we'll have to move fast
-* Stop me if I curse, can't help it, I'm Irish
+* Slinging code for 20 years. [^brag_list] 
+* Writing Elixir for about 5 years now (and loving it).
+* Widely regarded as having a bad attitude.
+* Built 52 slides so we'll have to move fast.
 
 [^brag_list]: Perl, VB, C, C++, PHP, Python, Java, Scala, Javascript, Actionscript, Erlang, Shell, Ansible, Zsh, AWK, Sed, etc, 😴
 
@@ -32,12 +31,11 @@ About me
 * Elixir also makes easy things easy ✅ 
 * Elixir lacks drama ✅  
 * Elixir is stable/boring ✅
-* Elixir doesn't just crash 〽 [^stg] and burn 🔥
+* Elixir doesn't crash 〽 [^stg] 
 
 ![fit](images/esl-background.png)
 
-[^stg]: Unlike the £
-^ elixir is boring
+[^stg]: Unlike £
 
 ---
 
@@ -46,34 +44,41 @@ About me
 
 # Talk objectives
 
-1. Global platform to rant about Aer Lingus having double charging me.
-2. An analyis of why their system double charged me.
-3. Illustrate techniques to :
+1. Global opportunity to complain about Aer Lingus double charging.
+2. An analysis of why their system double charged the customer.
+3. Illustrate techniques to:
   * Build a more reliable system 
   * Not double charge customers
-  * Be aware of problems
+  * Proactively monitor for system malfunction
 
 ---
 
 ![](images/Aer_Lingus_EI-DUB_A330.jpg)
 
-# Opening scene [^never forgive/never forget/never for fun]
+# Opening scene [^u owe me]
 
-1. Emergency! I need to fly from Dublin to London early tomorrow morning. 
+[.column]
+1. Urgently need to fly from Dublin to London the next day. 
 2. The website warns me there are only 3 seats remaining for the flight. 
-3. I select flight, don't care which seat, and enter my credit card details (after dealing with a couple of session timeouts).
-4. The Aer Lingus website: 
+3. Better book fast!
+   * Select flight.
+   * Select any seat.
+   * Enter my credit card details.
+   * Deal with a couple of session timeouts.
+
+[.column]
+1. The Aer Lingus website: 
   * Insists I sign up for their loyalty scheme (the sweet, sweet irony).
   * Crashes.
   * Locks me out.
-5. I wait 30 minutes and don't receive any email confirmation
-6. Panic 😧
+2. I wait 30 minutes and don't receive any email confirmation.
+3. Panic 😧.
 
-[^never forgive/never forget/never for fun]: This happened nearly 4 years ago but I still want my £95.99 back (with interest)
+[^u owe me]: This happened nearly 4 years ago but I still want my £95.99 back (with interest).
 
 ---
 
-# A desperate fool
+# Like a desperate fool
 
 ![](images/Aer_Lingus_EI-DUB_A330.jpg)
 
@@ -93,14 +98,14 @@ About me
 
 Receive a booking confirmation at 8:03 PM - I will fly to London! [^rain_and_horrible_food]
 
-[^rain_and_horrible_food]: Where it's almost certainly raining, and £10 for a pizza which an Italian would use to wipe the floor.
+[^rain_and_horrible_food]: Where it's almost certainly raining, and a pizza that an Italian would use to wipe the floor costs £15.
 
 ---
 
 ![](images/Aer_Lingus_EI-DUB_A330.jpg)
 ![right](images//man-working-using-a-laptop-2696299.jpg)
 
-# Actually, fail !
+# System malfunction !
 
 * Another booking confirmation, this time at 8:15 PM..
 * Check my bank account - billed twice.
@@ -498,7 +503,6 @@ end
 ^ if the unique constraint has been violated or not and, if so, Ecto converts it into a changeset error.
 ^ naive implementation - indexes are not free - they slow up writes
 
-
 ---
 
 # Repo
@@ -530,7 +534,7 @@ mix phx.gen.schema \
 
 ---
 
-Using the Ecto changeset for validation without using the database
+# Use the Ecto changeset to validate input without touching the database
 
 ```
 iex(8)> Airline.Flight.Booking.changeset(%Airline.Flight.Booking{}, %{})                                                            
@@ -556,7 +560,7 @@ iex(8)> Airline.Flight.Booking.changeset(%Airline.Flight.Booking{}, %{})
 
 ---
 
-Generate a validated changeset
+# Generate a valid changeset
 
 
 ```
@@ -581,7 +585,7 @@ valid_changeset = %Ecto.Changeset{valid?: true} = Airline.Flight.Booking.changes
 
 ---
 
-Insert unique data 
+# Insert valid data
 
 ```
 iex(7)> Airline.Repo.insert(valid_changeset)                                                                             
@@ -607,7 +611,7 @@ INSERT INTO "flight_bookings" ("cc_hash","day", SNIP...
 
 ---
 
-Insert duplicate data
+# Insert duplicate data
 
 ```
 iex(8)> Airline.Repo.insert(valid_changeset)
@@ -650,7 +654,6 @@ INSERT INTO "flight_bookings" ("cc_hash","day", SNIP...
 ---
 
 We add an `:entity_hash` column to the Booking module 
-
 
 [.column]
 
@@ -748,7 +751,7 @@ end
 
 # Bloom filter [^bloom]
 
-Used as an optimization in many data stores to avoid searching/index lookup when the entity just doesn't exist.
+Used as an optimization in many data stores to avoid hitting index files to check if an element exists - some examples :
 
 * Cassandra 
 * Riak 
@@ -806,7 +809,7 @@ end
 
 ---
 
-Add the GenServer to the supervison tree of your application module
+Add the GenServer to the supervision tree of your application module
 
 
 ```elixir
@@ -846,9 +849,9 @@ Bloomer.add {:booking, changeset.changes.entity_hash}
 
 ---
 
-# What about the database being down? 
+# What about the database (or other service) being temporarily unavailable ? 
 
-^ how can we handle intermittend database failures on the critical path?
+^ how can we handle intermittent database failures on the critical path?
 
 ---
 
