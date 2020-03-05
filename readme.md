@@ -15,7 +15,6 @@ About me
 
 * Slinging code for 20 years. [^brag_list] 
 * Writing Elixir for about 5 years now (and loving it).
-* Widely regarded as having a bad attitude.
 * Built 52 slides so we'll have to move fast.
 
 [^brag_list]: Perl, VB, C, C++, PHP, Python, Java, Scala, Javascript, Actionscript, Erlang, Shell, Ansible, Zsh, AWK, Sed, etc, 😴
@@ -44,7 +43,7 @@ About me
 
 # Talk objectives
 
-1. Global opportunity to complain about Aer Lingus double charging.
+1. Opportunity to complain about being double charged when booking a flight.
 2. An analysis of why their system double charged the customer.
 3. Illustrate techniques to:
   * Build a more reliable system 
@@ -86,7 +85,7 @@ About me
 2. Start the booking process from scratch.
 3. Decline the Aer Lingus loyalty scheme 😱.
 4. Use the same name, email, and credit card.
-5. On the second attempt, the booking succeeded.
+5. On the second attempt, the booking succeeds.
 6. Nervously await booking confirmation.
 
 ---
@@ -96,16 +95,14 @@ About me
 
 ![](images/Aer_Lingus_EI-DUB_A330.jpg)
 
-Receive a booking confirmation at 8:03 PM - I will fly to London! [^rain_and_horrible_food]
-
-[^rain_and_horrible_food]: Where it's almost certainly raining, and a pizza that an Italian would use to wipe the floor costs £15.
+Receive a booking confirmation at 8:03 PM - you will be flying to London! 
 
 ---
 
 ![](images/Aer_Lingus_EI-DUB_A330.jpg)
 ![right](images//man-working-using-a-laptop-2696299.jpg)
 
-# System malfunction !
+# Actually Fail!
 
 * Another booking confirmation, this time at 8:15 PM..
 * Check my bank account - billed twice.
@@ -151,6 +148,8 @@ Receive a booking confirmation at 8:03 PM - I will fly to London! [^rain_and_hor
 ![](images/Aer_Lingus_EI-DUB_A330.jpg)
 
 [^spoilers]: HTTP header leakage reveals it's running on Java/JBOSS - so of course we can.. 
+
+^ 10 minutes in
 
 ---
 
